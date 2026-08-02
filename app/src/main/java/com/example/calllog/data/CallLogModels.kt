@@ -1,0 +1,102 @@
+package com.example.calllog.data
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class CallRecord(
+    val id: String,
+    val number: String,
+    val name: String?,
+    val type: Int, // Incoming, Outgoing, Missed, etc.
+    val date: Long,
+    val duration: Long,
+    val description: String = "",
+    val contactName: String = "",
+    val companyName: String = "",
+    val address: String = "",
+    val status: String = "Select Status", // Interested, Not Interested, Prospect
+    val isSaved: Boolean = false,
+    val syncedBy: String? = null
+)
+
+@Serializable
+data class MongoInsertRequest(
+    val dataSource: String,
+    val database: String,
+    val collection: String,
+    val documents: List<CallRecord>
+)
+
+@Serializable
+data class GoogleSheetRequest(
+    val action: String = "append",
+    val data: List<CallRecord>
+)
+
+@Serializable
+data class LoginRequest(
+    val username: String,
+    val password: String
+)
+
+@Serializable
+data class SyncRequest(
+    val userName: String,
+    val logs: List<CallRecord>
+)
+
+@Serializable
+data class LoginResponse(
+    val success: Boolean,
+    val message: String,
+    val userName: String? = null,
+    val role: String? = null,
+    val empId: String? = null
+)
+
+@Serializable
+data class RegisterRequest(
+    val name: String,
+    val email: String,
+    val phone: String,
+    val empId: String,
+    val password: String,
+    val role: String = "Executive",
+    val reportsTo: String = ""
+)
+
+@Serializable
+data class TeamMember(
+    val empId: String,
+    val name: String,
+    val role: String? = null, // Role can be null in DB
+    val email: String = "",
+    val phone: String = "",
+    val reportsTo: String = "",
+    val isDeleted: Boolean = false
+)
+
+@Serializable
+data class DeleteUserRequest(
+    val empId: String
+)
+
+@Serializable
+data class GetTeamLogsRequest(
+    val targetEmpIds: List<String>,
+    val startDate: Long? = null,
+    val endDate: Long? = null,
+    val includeSubordinates: Boolean = false
+)
+
+@Serializable
+data class GetLogsRequest(
+    val ids: List<String>
+)
+
+@Serializable
+data class UpdateHierarchyRequest(
+    val empId: String,
+    val role: String,
+    val reportsTo: String
+)

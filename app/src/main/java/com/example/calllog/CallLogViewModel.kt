@@ -1,0 +1,139 @@
+package com.example.calllog
+
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.calllog.data.*
+import com.example.calllog.network.SyncManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.Calendar
+
+class CallLogViewModel(private val context: Context) : ViewModel() {
+
+    private val repository = CallLogRepository(context)
+    private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    private val _todaysLogs = MutableStateFlow<List<CallRecord>>(emptyList())
+    val todaysLogs: StateFlow<List<CallRecord>> = _todaysLogs.asStateFlow()
+
+    private val _startDate = MutableStateFlow<Long?>(null)
+    private val _endDate = MutableStateFlow<Long?>(null)
+
+    init {
+        // Default to Today
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        _startDate.value = cal.timeInMillis
+        _endDate.value = System.currentTimeMillis()
+        
+        loadTodaysLogs()
+    }
+
+    fun setDateRange(start: Long?, end: Long?) {
+        _startDate.value = start
+        _endDate.value = end
+        loadTodaysLogs()
+    }
+
+    fun loadTodaysLogs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val systemLogs = repository.getFilteredCallLogs(SyncManager.userEmpId, _startDate.value, _endDate.value)
+            if (systemLogs.isEmpty()) {
+                _todaysLogs.value = emptyList()
+                return@launch
+            }
+
+            // Verify which logs are actually in MongoDB
+            val savedLogsInDb = SyncManager.fetchSavedLogs(systemLogs.map { it.id })
+            val dbMap = savedLogsInDb.associateBy { it.id }
+
+            // Combine system info with DB info (descriptions + saved status)
+            val finalLogs = systemLogs.map { systemLog ->
+                dbMap[systemLog.id]?.let { dbLog ->
+                    systemLog.copy(
+                        description = dbLog.description,
+                        contactName = dbLog.contactName,
+                        companyName = dbLog.companyName,
+                        address = dbLog.address,
+                        status = dbLog.status,
+                        isSaved = true,
+                        syncedBy = dbLog.syncedBy
+                    )
+                } ?: systemLog.copy(isSaved = false, description = "", contactName = "", companyName = "", address = "", status = "Select Status")
+            }
+            
+            _todaysLogs.value = finalLogs
+        }
+    }
+
+    fun updateCallDetails(
+        callId: String,
+        description: String? = null,
+        contactName: String? = null,
+        companyName: String? = null,
+        address: String? = null,
+        status: String? = null
+    ) {
+        _todaysLogs.value = _todaysLogs.value.map { log ->
+            if (log.id == callId) {
+                log.copy(
+                    description = description ?: log.description,
+                    contactName = contactName ?: log.contactName,
+                    companyName = companyName ?: log.companyName,
+                    address = address ?: log.address,
+                    status = status ?: log.status
+                )
+            } else log
+        }
+    }
+
+    fun saveCallLog(log: CallRecord) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val success = SyncManager.syncLogs(listOf(log.copy(isSaved = true)))
+                if (success) {
+                    _uiState.value = UiState.Success("Saved and synced!")
+                    loadTodaysLogs() // Refresh to lock UI
+                } else {
+                    _uiState.value = UiState.Error("Sync failed.")
+                }
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun login(request: LoginRequest, onResult: (Boolean) -> Unit) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            val response = SyncManager.login(context, request)
+            if (response.success) {
+                _uiState.value = UiState.Success("LOGIN_SUCCESS")
+                onResult(true)
+            } else {
+                _uiState.value = UiState.Error(response.message)
+                onResult(false)
+            }
+        }
+    }
+
+    fun register(request: RegisterRequest) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            if (SyncManager.register(request)) {
+                _uiState.value = UiState.Success("REGISTER_SUCCESS")
+            } else {
+                _uiState.value = UiState.Error("Registration failed")
+            }
+        }
+    }
+}

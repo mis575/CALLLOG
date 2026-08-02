@@ -226,7 +226,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel) {
                     Text(text = "Duration: ${log.duration}s", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
                 }
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
-                    Text(text = log.syncedBy ?: SyncManager.userName, modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
+                    Text(text = "User: ${log.syncedBy ?: SyncManager.userName}", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
                 }
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
                     Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)), modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)

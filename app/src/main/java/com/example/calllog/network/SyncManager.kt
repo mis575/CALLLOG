@@ -12,7 +12,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 object SyncManager {
-    private const val BACKEND_BASE_URL = "http://192.168.1.7:3000/"
+    private const val BACKEND_BASE_URL = "https://call-log-qaq7.onrender.com/"
     private const val PREFS_NAME = "CRM_Prefs"
     
     private val _isLoggedIn = MutableStateFlow(false)

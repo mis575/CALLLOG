@@ -220,10 +220,13 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel) {
         border = BorderStroke(1.dp, Color.LightGray)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Row 1: Duration | Time
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            // Row 1: Duration | User Name | Time
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
                     Text(text = "Duration: ${log.duration}s", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
+                }
+                Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
+                    Text(text = log.syncedBy ?: SyncManager.userName, modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
                 }
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
                     Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)), modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)

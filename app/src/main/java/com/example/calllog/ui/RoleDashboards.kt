@@ -1282,6 +1282,14 @@ fun AssignedLeadsSection(
                                     fontSize = 14.sp,
                                     color = Color(0xFFE65100)
                                 )
+                                if (!lead.name.isNullOrBlank()) {
+                                    Text(
+                                        text = lead.name,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = Color.Black
+                                    )
+                                }
                                 Text(
                                     text = "By: ${lead.assignedByName}",
                                     fontSize = 11.sp,

@@ -124,9 +124,9 @@ object SyncManager {
         return try { api.getTeamMembersForTransfer(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
     }
 
-    suspend fun assignContacts(numbers: List<String>, assignedTo: String, assignedBy: String): Boolean {
+    suspend fun assignContacts(leads: List<com.example.calllog.data.LeadInfo>, assignedTo: String, assignedBy: String): Boolean {
         return try {
-            val response = api.assignContacts(ContactAssignmentRequest(numbers, assignedTo, assignedBy))
+            val response = api.assignContacts(com.example.calllog.data.ContactAssignmentRequest(leads = leads, assignedTo = assignedTo, assignedBy = assignedBy))
             response.isSuccessful && response.body()?.success == true
         } catch (e: Exception) { false }
     }

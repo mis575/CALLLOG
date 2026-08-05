@@ -15,6 +15,8 @@ data class CallRecord(
     val companyName: String = "",
     val address: String = "",
     val status: String = "Select Status", // Interested, Not Interested, Prospect
+    val email: String = "",
+    val format: String = "Select Format",
     val isSaved: Boolean = false,
     val syncedBy: String? = null
 )
@@ -114,8 +116,15 @@ data class AssignedContact(
 )
 
 @Serializable
+data class LeadInfo(
+    val number: String,
+    val name: String = ""
+)
+
+@Serializable
 data class ContactAssignmentRequest(
-    val numbers: List<String>,
+    val leads: List<LeadInfo> = emptyList(),
+    val numbers: List<String> = emptyList(),
     val assignedTo: String,
     val assignedBy: String
 )

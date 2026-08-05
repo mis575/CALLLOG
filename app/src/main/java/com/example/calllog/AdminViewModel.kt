@@ -133,12 +133,12 @@ class AdminViewModel : ViewModel() {
         }
     }
 
-    fun assignContacts(numbers: List<String>, assignedTo: String, assignedBy: String, onResult: (Boolean) -> Unit) {
+    fun assignContacts(leads: List<com.example.calllog.data.LeadInfo>, assignedTo: String, assignedBy: String, onResult: (Boolean) -> Unit) {
         _uiState.value = UiState.Loading
         viewModelScope.launch {
-            val success = SyncManager.assignContacts(numbers, assignedTo, assignedBy)
+            val success = SyncManager.assignContacts(leads, assignedTo, assignedBy)
             if (success) {
-                _uiState.value = UiState.Success("Successfully assigned ${numbers.size} contacts")
+                _uiState.value = UiState.Success("Successfully assigned ${leads.size} contacts")
                 onResult(true)
             } else {
                 _uiState.value = UiState.Error("Failed to assign contacts")

@@ -54,6 +54,7 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             // Verify which logs are actually in MongoDB
             val savedLogsInDb = SyncManager.fetchSavedLogs(systemLogs.map { it.id })
             val dbMap = savedLogsInDb.associateBy { it.id }
+            val assignedMap = _assignedContacts.value.associateBy { it.number }
 
             // Combine system info with DB info (descriptions + saved status)
             val finalLogs = systemLogs.map { systemLog ->
@@ -64,10 +65,24 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                         companyName = dbLog.companyName,
                         address = dbLog.address,
                         status = dbLog.status,
+                        email = dbLog.email,
+                        format = dbLog.format,
                         isSaved = true,
                         syncedBy = dbLog.syncedBy
                     )
-                } ?: systemLog.copy(isSaved = false, description = "", contactName = "", companyName = "", address = "", status = "Select Status")
+                } ?: run {
+                    val assigned = assignedMap[systemLog.number]
+                    systemLog.copy(
+                        isSaved = false,
+                        description = "",
+                        contactName = assigned?.name ?: "",
+                        companyName = "",
+                        address = "",
+                        status = "Select Status",
+                        email = "",
+                        format = "Select Format"
+                    )
+                }
             }
             
             _todaysLogs.value = finalLogs
@@ -80,7 +95,9 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         contactName: String? = null,
         companyName: String? = null,
         address: String? = null,
-        status: String? = null
+        status: String? = null,
+        email: String? = null,
+        format: String? = null
     ) {
         _todaysLogs.value = _todaysLogs.value.map { log ->
             if (log.id == callId) {
@@ -89,7 +106,9 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     contactName = contactName ?: log.contactName,
                     companyName = companyName ?: log.companyName,
                     address = address ?: log.address,
-                    status = status ?: log.status
+                    status = status ?: log.status,
+                    email = email ?: log.email,
+                    format = format ?: log.format
                 )
             } else log
         }

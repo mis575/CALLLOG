@@ -298,6 +298,54 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Row 3.5: Email | Format Dropdown
+            var formatExpanded by remember { mutableStateOf(false) }
+            val formats = listOf(
+                "General Catalogue Sharing (Format 0005)",
+                "Collaboration Opportunity (Format 0003)",
+                "Revolutionize Your Printing (Format 0002)",
+                "Elevate Your Brand (Format 0004)"
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextField(
+                    value = log.email,
+                    onValueChange = { viewModel.updateCallDetails(log.id, email = it) },
+                    label = { Text("Email", fontSize = 10.sp) },
+                    modifier = Modifier.weight(1f),
+                    enabled = !log.isSaved,
+                    textStyle = MaterialTheme.typography.bodySmall
+                )
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { if (!log.isSaved) formatExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !log.isSaved,
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = log.format, 
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    DropdownMenu(expanded = formatExpanded, onDismissRequest = { formatExpanded = false }) {
+                        formats.forEach { f ->
+                            DropdownMenuItem(
+                                text = { Text(f) },
+                                onClick = { 
+                                    viewModel.updateCallDetails(log.id, format = f)
+                                    formatExpanded = false 
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Row 4: Description
             TextField(
                 value = log.description,

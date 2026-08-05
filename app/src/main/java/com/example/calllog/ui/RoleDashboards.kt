@@ -776,8 +776,11 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
                 Button(
                     onClick = {
                         selectedMember?.let { target ->
+                            val leadsToTransfer = leads
+                                .filter { selectedLeads.contains(it.number) }
+                                .map { com.example.calllog.data.LeadInfo(number = it.number, name = it.name ?: "") }
                             adminVM.assignContacts(
-                                numbers = selectedLeads.toList(),
+                                leads = leadsToTransfer,
                                 assignedTo = target.empId,
                                 assignedBy = SyncManager.userEmpId
                             ) { success ->
@@ -1168,6 +1171,42 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
                     }
                 }
 
+                if (!log.email.isNullOrBlank()) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Email: ",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.width(70.dp)
+                        )
+                        Text(
+                            text = log.email,
+                            fontSize = 12.sp,
+                            color = Color(0xFF212121),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                if (!log.format.isNullOrBlank() && log.format != "Select Format") {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Format: ",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.width(70.dp)
+                        )
+                        Text(
+                            text = log.format,
+                            fontSize = 12.sp,
+                            color = Color(0xFF212121),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
                 if (!log.description.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -1293,8 +1332,8 @@ fun TransferNumbersDialog(
                 TextField(
                     value = numbersStr,
                     onValueChange = { numbersStr = it },
-                    label = { Text("Phone Numbers (comma separated)") },
-                    placeholder = { Text("e.g. 9876543210, 8765432109") },
+                    label = { Text("Leads (format Number:Name, comma separated)") },
+                    placeholder = { Text("e.g. 9876543210: John Doe, 8765432109") },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 5
                 )
@@ -1337,14 +1376,25 @@ fun TransferNumbersDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val numbersList = numbersStr.split(",")
+                    val parsedLeads = numbersStr.split(",")
                         .map { it.trim() }
                         .filter { it.isNotBlank() }
+                        .map { entry ->
+                            if (entry.contains(":")) {
+                                val parts = entry.split(":", limit = 2)
+                                com.example.calllog.data.LeadInfo(number = parts[0].trim(), name = parts[1].trim())
+                            } else if (entry.contains("-")) {
+                                val parts = entry.split("-", limit = 2)
+                                com.example.calllog.data.LeadInfo(number = parts[0].trim(), name = parts[1].trim())
+                            } else {
+                                com.example.calllog.data.LeadInfo(number = entry, name = "")
+                            }
+                        }
                     
                     val target = selectedMember
-                    if (numbersList.isNotEmpty() && target != null) {
+                    if (parsedLeads.isNotEmpty() && target != null) {
                         adminVM.assignContacts(
-                            numbers = numbersList,
+                            leads = parsedLeads,
                             assignedTo = target.empId,
                             assignedBy = SyncManager.userEmpId
                         ) { success ->

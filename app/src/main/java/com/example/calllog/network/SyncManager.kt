@@ -119,4 +119,19 @@ object SyncManager {
         }
         return false
     }
+
+    suspend fun getTeamMembersForTransfer(empId: String): List<TeamMember> {
+        return try { api.getTeamMembersForTransfer(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun assignContacts(numbers: List<String>, assignedTo: String, assignedBy: String): Boolean {
+        return try {
+            val response = api.assignContacts(ContactAssignmentRequest(numbers, assignedTo, assignedBy))
+            response.isSuccessful && response.body()?.success == true
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun getAssignedContacts(empId: String): List<AssignedContact> {
+        return try { api.getAssignedContacts(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
 }

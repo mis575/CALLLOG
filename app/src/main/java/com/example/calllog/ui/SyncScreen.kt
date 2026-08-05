@@ -47,6 +47,7 @@ fun SyncScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.loadTodaysLogs()
+                viewModel.loadAssignedContacts()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -113,6 +114,11 @@ fun SyncScreen(
                 Text("Call")
             }
         }
+
+        AssignedLeadsSection(
+            viewModel = viewModel,
+            onLeadClick = { phoneNumber = it }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
         HorizontalDivider()

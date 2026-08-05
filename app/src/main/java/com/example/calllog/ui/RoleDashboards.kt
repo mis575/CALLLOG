@@ -57,6 +57,63 @@ fun ManagementDashboard(role: String) {
             return CallLogViewModel(context.applicationContext) as T
         }
     })
+package com.example.calllog.ui
+
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.calllog.AdminViewModel
+import com.example.calllog.CallLogViewModel
+import com.example.calllog.UiState
+import com.example.calllog.data.RegisterRequest
+import com.example.calllog.data.TeamMember
+import com.example.calllog.data.CallRecord
+import com.example.calllog.network.SyncManager
+import java.util.Calendar
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+
+@Composable
+fun ExecutiveDashboard(viewModel: CallLogViewModel) {
+    SyncScreen(viewModel, hideAdminButton = true)
+}
+
+data class BrowsingContext(
+    val empId: String,
+    val name: String,
+    val role: String
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManagementDashboard(role: String) {
+    val adminVM: AdminViewModel = viewModel()
+    val context = LocalContext.current
+    val callVM: CallLogViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+            return CallLogViewModel(context.applicationContext) as T
+        }
+    })
 
     val members by adminVM.members.collectAsState()
     val reports by adminVM.reports.collectAsState()
@@ -68,6 +125,7 @@ fun ManagementDashboard(role: String) {
     var selectedEmpId by remember { mutableStateOf("") }
     var currentTab by remember { mutableStateOf(0) } // 0: Team, 1: My Calls
     var showExportDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
     
     val browsingStack = remember { 
         mutableStateListOf(
@@ -178,7 +236,8 @@ fun ManagementDashboard(role: String) {
                                 selectedEmpId = m.empId
                                 adminVM.loadReports(listOf(m.empId), includeSubs = true)
                             },
-                            onExportClick = { showExportDialog = true }
+                            onExportClick = { showExportDialog = true },
+                            onTransferClick = { showTransferDialog = true }
                         )
                     } else {
                         PersonalCallingView(callVM)
@@ -198,6 +257,13 @@ fun ManagementDashboard(role: String) {
                 adminVM.fetchAndExport(context, targetIds, includeSubs = includeSubs)
                 showExportDialog = false
             }
+        )
+    }
+
+    if (showTransferDialog) {
+        TransferNumbersDialog(
+            adminVM = adminVM,
+            onDismiss = { showTransferDialog = false }
         )
     }
 
@@ -251,6 +317,11 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
                 }
             }
         }
+
+        AssignedLeadsSection(
+            viewModel = viewModel,
+            onLeadClick = { phoneNumber = it }
+        )
 
         Spacer(Modifier.height(16.dp))
         DateFilterRow(onFilterChange = { start, end ->
@@ -353,7 +424,8 @@ fun DashboardMainView(
     uiState: UiState, selectedEmpId: String, context: android.content.Context, currentBrowsingId: String,
     onAddUser: (String) -> Unit, onSelectMember: (TeamMember) -> Unit,
     onTeamReportClick: (TeamMember) -> Unit,
-    onExportClick: () -> Unit
+    onExportClick: () -> Unit,
+    onTransferClick: () -> Unit
 ) {
     val cleanRole = (role ?: "Executive").uppercase()
 
@@ -362,10 +434,12 @@ fun DashboardMainView(
             if (cleanRole == "ADMIN") {
                 Button(onClick = { onAddUser("Manager") }, modifier = Modifier.weight(1f)) { Text("Add Manager", fontSize = 12.sp) }
             } else if (cleanRole == "MANAGER") {
-                Button(onClick = { onAddUser("TL") }, modifier = Modifier.weight(1f)) { Text("Add TL", fontSize = 12.sp) }
-                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(1f)) { Text("Add Exec", fontSize = 12.sp) }
+                Button(onClick = { onAddUser("TL") }, modifier = Modifier.weight(0.7f)) { Text("Add TL", fontSize = 12.sp) }
+                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(0.7f)) { Text("Add Exec", fontSize = 12.sp) }
+                Button(onClick = onTransferClick, modifier = Modifier.weight(0.8f)) { Text("Assign Leads", fontSize = 12.sp) }
             } else if (cleanRole == "TL") {
-                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(1f)) { Text("Add Executive", fontSize = 12.sp) }
+                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(0.8f)) { Text("Add Executive", fontSize = 12.sp) }
+                Button(onClick = onTransferClick, modifier = Modifier.weight(0.8f)) { Text("Assign Leads", fontSize = 12.sp) }
             }
             Button(onClick = onExportClick, modifier = if(cleanRole=="EXECUTIVE") Modifier.fillMaxWidth() else Modifier.weight(0.6f)) { 
                 Text("Export", fontSize = 12.sp) 
@@ -497,50 +571,6 @@ fun DashboardMainView(
                 Text("Select a team member and click 📊 to see reports.", color = Color.Gray)
             }
         }
-    }
-}
-
-@Composable
-fun DuplicateDateFilterRow(onFilterChange: (Long?, Long?) -> Unit) {
-    var selectedFilter by remember { mutableStateOf("Today") }
-    val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
-    var showCustomDialog by remember { mutableStateOf(false) }
-    var customLabel by remember { mutableStateOf("") }
-    
-    val df = SimpleDateFormat("dd MMM", Locale.getDefault())
-
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        filters.forEach { filter ->
-            val label = if (filter == "Custom" && customLabel.isNotEmpty()) customLabel else filter
-            FilterChip(
-                selected = selectedFilter == filter,
-                onClick = { 
-                    if (filter == "Custom") {
-                        showCustomDialog = true
-                    } else {
-                        selectedFilter = filter
-                        customLabel = ""
-                        val range = getRangeForFilter(filter)
-                        onFilterChange(range.first, range.second)
-                    }
-                },
-                label = { Text(label, fontSize = 10.sp) }
-            )
-        }
-    }
-    
-    if (showCustomDialog) {
-        CustomDateRangeDialog(
-            onDismiss = { showCustomDialog = false },
-            onApply = { start, end ->
-                selectedFilter = "Custom"
-                customLabel = "${df.format(Date(start))}-${df.format(Date(end))}"
-                onFilterChange(start, end)
-            }
-        )
     }
 }
 
@@ -1030,4 +1060,181 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
             }
         }
     }
+}
+
+@Composable
+fun AssignedLeadsSection(
+    viewModel: CallLogViewModel,
+    onLeadClick: (String) -> Unit
+) {
+    val assignedContacts by viewModel.assignedContacts.collectAsState()
+    val context = LocalContext.current
+    
+    LaunchedEffect(SyncManager.userEmpId) {
+        viewModel.loadAssignedContacts()
+    }
+    
+    if (assignedContacts.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFF57C00)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Assigned Leads (${assignedContacts.size})",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE65100),
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(assignedContacts) { lead ->
+                        Card(
+                            modifier = Modifier
+                                .width(180.dp)
+                                .clickable {
+                                    onLeadClick(lead.number)
+                                    Toast.makeText(context, "Loaded ${lead.number} to dialer", Toast.LENGTH_SHORT).show()
+                                },
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                            border = BorderStroke(1.dp, Color(0xFFFFB74D))
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text(
+                                    text = lead.number,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFFE65100)
+                                )
+                                Text(
+                                    text = "By: ${lead.assignedByName}",
+                                    fontSize = 11.sp,
+                                    color = Color.DarkGray
+                                )
+                                Text(
+                                    text = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(lead.assignedAt)),
+                                    fontSize = 9.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TransferNumbersDialog(
+    adminVM: AdminViewModel,
+    onDismiss: () -> Unit
+) {
+    var numbersStr by remember { mutableStateOf("") }
+    var selectedMember by remember { mutableStateOf<TeamMember?>(null) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    val transferMembers by adminVM.transferMembers.collectAsState()
+    val uiState by adminVM.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(SyncManager.userEmpId) {
+        adminVM.loadTransferMembers(SyncManager.userEmpId)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Assign / Transfer Numbers") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Assign contact numbers to team members. Executives will see these numbers in their dialer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Spacer(Modifier.height(12.dp))
+                
+                TextField(
+                    value = numbersStr,
+                    onValueChange = { numbersStr = it },
+                    label = { Text("Phone Numbers (comma separated)") },
+                    placeholder = { Text("e.g. 9876543210, 8765432109") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 5
+                )
+                
+                Spacer(Modifier.height(16.dp))
+                Text("Select Team Member:", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                
+                Box(Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { dropdownExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(selectedMember?.let { "${it.name} (${it.role ?: "Exec"})" } ?: "Choose Assignee")
+                    }
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        if (transferMembers.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No team members found") },
+                                onClick = { dropdownExpanded = false }
+                            )
+                        } else {
+                            transferMembers.forEach { member ->
+                                DropdownMenuItem(
+                                    text = { Text("${member.name} (${member.role ?: "Exec"})") },
+                                    onClick = {
+                                        selectedMember = member
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val numbersList = numbersStr.split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                    
+                    val target = selectedMember
+                    if (numbersList.isNotEmpty() && target != null) {
+                        adminVM.assignContacts(
+                            numbers = numbersList,
+                            assignedTo = target.empId,
+                            assignedBy = SyncManager.userEmpId
+                        ) { success ->
+                            if (success) {
+                                onDismiss()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Please enter numbers and select an assignee", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                enabled = uiState !is UiState.Loading
+            ) {
+                Text("Assign")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

@@ -115,6 +115,29 @@ class AdminViewModel : ViewModel() {
         }
     }
 
+    private val _transferMembers = MutableStateFlow<List<TeamMember>>(emptyList())
+    val transferMembers: StateFlow<List<TeamMember>> = _transferMembers.asStateFlow()
+
+    fun loadTransferMembers(empId: String) {
+        viewModelScope.launch {
+            _transferMembers.value = SyncManager.getTeamMembersForTransfer(empId)
+        }
+    }
+
+    fun assignContacts(numbers: List<String>, assignedTo: String, assignedBy: String, onResult: (Boolean) -> Unit) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch {
+            val success = SyncManager.assignContacts(numbers, assignedTo, assignedBy)
+            if (success) {
+                _uiState.value = UiState.Success("Successfully assigned ${numbers.size} contacts")
+                onResult(true)
+            } else {
+                _uiState.value = UiState.Error("Failed to assign contacts")
+                onResult(false)
+            }
+        }
+    }
+
     fun exportToCsv(context: Context): String? {
         if (_reports.value.isEmpty()) return null
         val csv = StringBuilder("ID,User,Number,Caller,Type,Date,Duration,Notes,Contact,Company,Address,Status\n")

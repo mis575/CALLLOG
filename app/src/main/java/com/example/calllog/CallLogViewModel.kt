@@ -103,12 +103,22 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                 if (success) {
                     _uiState.value = UiState.Success("Saved and synced!")
                     loadTodaysLogs() // Refresh to lock UI
+                    loadAssignedContacts() // Refresh pending assigned leads
                 } else {
                     _uiState.value = UiState.Error("Sync failed.")
                 }
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Error: ${e.localizedMessage}")
             }
+        }
+    }
+
+    private val _assignedContacts = MutableStateFlow<List<AssignedContact>>(emptyList())
+    val assignedContacts: StateFlow<List<AssignedContact>> = _assignedContacts.asStateFlow()
+
+    fun loadAssignedContacts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _assignedContacts.value = SyncManager.getAssignedContacts(SyncManager.userEmpId)
         }
     }
 

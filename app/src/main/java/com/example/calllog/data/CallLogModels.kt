@@ -100,3 +100,28 @@ data class UpdateHierarchyRequest(
     val role: String,
     val reportsTo: String
 )
+
+@Serializable
+data class AssignedContact(
+    val number: String,
+    val name: String? = null,
+    val assignedTo: String,
+    val assignedToName: String,
+    val assignedBy: String,
+    val assignedByName: String,
+    val assignedAt: Long,
+    val status: String
+)
+
+@Serializable
+data class ContactAssignmentRequest(
+    val numbers: List<String>,
+    val assignedTo: String,
+    val assignedBy: String
+)
+
+@Serializable
+data class AssignResponse(
+    val success: Boolean,
+    val message: String
+)

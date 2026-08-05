@@ -10,6 +10,9 @@ import com.example.calllog.data.RegisterRequest
 import com.example.calllog.data.SyncRequest
 import com.example.calllog.data.TeamMember
 import com.example.calllog.data.UpdateHierarchyRequest
+import com.example.calllog.data.ContactAssignmentRequest
+import com.example.calllog.data.AssignResponse
+import com.example.calllog.data.AssignedContact
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -65,4 +68,19 @@ interface UnifiedSyncApiService {
     suspend fun syncCallLogs(
         @Body request: SyncRequest
     ): Response<ResponseBody>
+
+    @GET("getTeamMembersForTransfer/{empId}")
+    suspend fun getTeamMembersForTransfer(
+        @Path("empId") empId: String
+    ): Response<List<TeamMember>>
+
+    @POST("contacts/assign")
+    suspend fun assignContacts(
+        @Body request: ContactAssignmentRequest
+    ): Response<AssignResponse>
+
+    @GET("contacts/assigned/{empId}")
+    suspend fun getAssignedContacts(
+        @Path("empId") empId: String
+    ): Response<List<AssignedContact>>
 }

@@ -6,14 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.calllog"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.calllog"
-        minSdk = 24
-        targetSdk = 37
+        minSdk = 23
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -25,6 +23,7 @@ android {
             optimization {
                 enable = false
             }
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

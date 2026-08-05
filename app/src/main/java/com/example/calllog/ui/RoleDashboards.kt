@@ -57,63 +57,6 @@ fun ManagementDashboard(role: String) {
             return CallLogViewModel(context.applicationContext) as T
         }
     })
-package com.example.calllog.ui
-
-import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.calllog.AdminViewModel
-import com.example.calllog.CallLogViewModel
-import com.example.calllog.UiState
-import com.example.calllog.data.RegisterRequest
-import com.example.calllog.data.TeamMember
-import com.example.calllog.data.CallRecord
-import com.example.calllog.network.SyncManager
-import java.util.Calendar
-import java.util.Date
-import java.text.SimpleDateFormat
-import java.util.Locale
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-
-@Composable
-fun ExecutiveDashboard(viewModel: CallLogViewModel) {
-    SyncScreen(viewModel, hideAdminButton = true)
-}
-
-data class BrowsingContext(
-    val empId: String,
-    val name: String,
-    val role: String
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ManagementDashboard(role: String) {
-    val adminVM: AdminViewModel = viewModel()
-    val context = LocalContext.current
-    val callVM: CallLogViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-            return CallLogViewModel(context.applicationContext) as T
-        }
-    })
 
     val members by adminVM.members.collectAsState()
     val reports by adminVM.reports.collectAsState()
@@ -571,6 +514,50 @@ fun DashboardMainView(
                 Text("Select a team member and click 📊 to see reports.", color = Color.Gray)
             }
         }
+    }
+}
+
+@Composable
+fun DuplicateDateFilterRow(onFilterChange: (Long?, Long?) -> Unit) {
+    var selectedFilter by remember { mutableStateOf("Today") }
+    val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
+    var showCustomDialog by remember { mutableStateOf(false) }
+    var customLabel by remember { mutableStateOf("") }
+    
+    val df = SimpleDateFormat("dd MMM", Locale.getDefault())
+
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        filters.forEach { filter ->
+            val label = if (filter == "Custom" && customLabel.isNotEmpty()) customLabel else filter
+            FilterChip(
+                selected = selectedFilter == filter,
+                onClick = { 
+                    if (filter == "Custom") {
+                        showCustomDialog = true
+                    } else {
+                        selectedFilter = filter
+                        customLabel = ""
+                        val range = getRangeForFilter(filter)
+                        onFilterChange(range.first, range.second)
+                    }
+                },
+                label = { Text(label, fontSize = 10.sp) }
+            )
+        }
+    }
+    
+    if (showCustomDialog) {
+        CustomDateRangeDialog(
+            onDismiss = { showCustomDialog = false },
+            onApply = { start, end ->
+                selectedFilter = "Custom"
+                customLabel = "${df.format(Date(start))}-${df.format(Date(end))}"
+                onFilterChange(start, end)
+            }
+        )
     }
 }
 

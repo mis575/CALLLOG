@@ -66,7 +66,7 @@ fun ManagementDashboard(role: String) {
     var roleToAdd by remember { mutableStateOf<String?>(null) }
     var showUserManagement by remember { mutableStateOf(false) }
     var selectedEmpId by remember { mutableStateOf("") }
-    var currentTab by remember { mutableStateOf(0) } // 0: Team, 1: My Calls
+    var currentTab by remember { mutableStateOf(0) } // 0: Team, 1: My Calls, 2: Leads
     var showExportDialog by remember { mutableStateOf(false) }
     var showTransferDialog by remember { mutableStateOf(false) }
     
@@ -105,8 +105,10 @@ fun ManagementDashboard(role: String) {
         adminVM.loadMembers(currentBrowsingId)
         adminVM.loadAllUsers()
         
-        // Auto-load reports (cumulative) for everyone by default
-        adminVM.loadReports(listOf(currentBrowsingId), includeSubs = true)
+        // Fix: Default to Individual report when entering a level
+        // (User said: clicking on manager should show his own report)
+        adminVM.loadReports(listOf(currentBrowsingId), includeSubs = false)
+        selectedEmpId = "" 
     }
 
     LaunchedEffect(showUserManagement) { if(showUserManagement) adminVM.loadAllUsers() }
@@ -145,8 +147,9 @@ fun ManagementDashboard(role: String) {
                 UserManagementView(adminVM, allUsers, currentBrowsingId)
             } else {
                 TabRow(selectedTabIndex = currentTab, containerColor = Color.White) {
-                    Tab(selected = currentTab == 0, onClick = { currentTab = 0 }, text = { Text("Team Discovery") })
+                    Tab(selected = currentTab == 0, onClick = { currentTab = 0 }, text = { Text("Discovery") })
                     Tab(selected = currentTab == 1, onClick = { currentTab = 1 }, text = { Text("My Calls") })
+                    Tab(selected = currentTab == 2, onClick = { currentTab = 2 }, text = { Text("Team Leads") })
                 }
 
                 Column(Modifier.padding(16.dp)) {
@@ -182,8 +185,10 @@ fun ManagementDashboard(role: String) {
                             onExportClick = { showExportDialog = true },
                             onTransferClick = { showTransferDialog = true }
                         )
-                    } else {
+                    } else if (currentTab == 1) {
                         PersonalCallingView(callVM)
+                    } else {
+                        TeamLeadsView(adminVM, currentBrowsingId)
                     }
                 }
             }
@@ -279,7 +284,7 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(todaysLogs) { log ->
-                        CallLogItem(log = log, viewModel = viewModel)
+                        CallLogItem(log = log, viewModel = viewModel, uiState = uiState)
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -495,7 +500,7 @@ fun DashboardMainView(
         if (role != "Admin" || selectedEmpId.isNotEmpty()) {
             if(uiState is UiState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             else {
-                val reportTitle = if(selectedEmpId.isEmpty()) "Team Reports" else "Report: $selectedEmpId"
+                val reportTitle = if(selectedEmpId.isEmpty()) "Individual Report" else "Team/Member Report"
                 Text(reportTitle, fontWeight = FontWeight.Bold)
                 Box(Modifier.weight(0.6f)) {
                     if (reports.isEmpty()) {
@@ -511,7 +516,7 @@ fun DashboardMainView(
             }
         } else {
             Box(Modifier.weight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Select a team member and click 📊 to see reports.", color = Color.Gray)
+                Text("Select a person or click 📊 to see team reports.", color = Color.Gray)
             }
         }
     }
@@ -651,6 +656,131 @@ fun ExportSelectionDialog(
             onApply = { start, end ->
                 selectedDateFilter = "Custom"
                 customRange = Pair(start, end)
+            }
+        )
+    }
+}
+
+@Composable
+fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
+    val leads by adminVM.teamLeadsData.collectAsState()
+    val transferMembers by adminVM.transferMembers.collectAsState()
+    val selectedLeads = remember { mutableStateListOf<String>() }
+    var showTransferDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentBrowsingId) {
+        adminVM.loadTeamLeads(currentBrowsingId)
+        adminVM.loadTransferMembers(SyncManager.userEmpId)
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Leads Management", fontWeight = FontWeight.Bold)
+            if (selectedLeads.isNotEmpty()) {
+                Button(onClick = { showTransferDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00))) {
+                    Text("Transfer (${selectedLeads.size})", fontSize = 12.sp)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        if (leads.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("No leads found in this branch.", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(Modifier.weight(1f)) {
+                items(leads) { lead ->
+                    val isSelected = selectedLeads.contains(lead.number)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                if (isSelected) selectedLeads.remove(lead.number)
+                                else selectedLeads.add(lead.number)
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) Color(0xFFFFF3E0) else Color.White
+                        ),
+                        border = BorderStroke(1.dp, if (isSelected) Color(0xFFF57C00) else Color(0xFFE0E0E0))
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isSelected, onCheckedChange = { checked ->
+                                if (checked == true) selectedLeads.add(lead.number)
+                                else selectedLeads.remove(lead.number)
+                            })
+                            Column(Modifier.weight(1f)) {
+                                Text(lead.number, fontWeight = FontWeight.Bold)
+                                Text("With: ${lead.assignedToName} (${lead.assignedTo})", fontSize = 11.sp, color = Color.Gray)
+                                Text("By: ${lead.assignedByName}", fontSize = 9.sp, color = Color.LightGray)
+                            }
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = if (lead.status == "Pending") Color(0xFFFFF3E0) else Color(0xFFE8F5E9)
+                            ) {
+                                Text(lead.status, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showTransferDialog) {
+        var expanded by remember { mutableStateOf(false) }
+        var selectedMember by remember { mutableStateOf<TeamMember?>(null) }
+        
+        AlertDialog(
+            onDismissRequest = { showTransferDialog = false },
+            title = { Text("Transfer Selected Leads") },
+            text = {
+                Column {
+                    Text("Transfer ${selectedLeads.size} leads to:", style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { expanded = true }, Modifier.fillMaxWidth()) {
+                            Text(selectedMember?.let { "${it.name} (${it.role})" } ?: "Select Assignee")
+                        }
+                        DropdownMenu(expanded, { expanded = false }) {
+                            transferMembers.forEach { m ->
+                                DropdownMenuItem(
+                                    text = { Text("${m.name} (${m.role ?: "Exec"})") }, 
+                                    onClick = { selectedMember = m; expanded = false }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedMember?.let { target ->
+                            adminVM.assignContacts(
+                                numbers = selectedLeads.toList(),
+                                assignedTo = target.empId,
+                                assignedBy = SyncManager.userEmpId
+                            ) { success ->
+                                if (success) {
+                                    selectedLeads.clear()
+                                    adminVM.loadTeamLeads(currentBrowsingId)
+                                    showTransferDialog = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = selectedMember != null
+                ) { Text("Confirm Transfer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTransferDialog = false }) { Text("Cancel") }
             }
         )
     }

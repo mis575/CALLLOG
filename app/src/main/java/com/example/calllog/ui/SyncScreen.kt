@@ -203,7 +203,7 @@ fun SyncScreen(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(todaysLogs.size) { index ->
-                        CallLogItem(log = todaysLogs[index], viewModel = viewModel)
+                        CallLogItem(log = todaysLogs[index], viewModel = viewModel, uiState = uiState)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
@@ -216,7 +216,7 @@ fun SyncScreen(
 }
 
 @Composable
-fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel) {
+fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) {
     var expanded by remember { mutableStateOf(false) }
     val statuses = listOf("Interested", "Not Interested", "Prospect")
 
@@ -314,8 +314,13 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel) {
                 Button(
                     onClick = { viewModel.saveCallLog(log) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.small
+                    shape = MaterialTheme.shapes.small,
+                    enabled = uiState !is UiState.Loading
                 ) {
+                    if (uiState is UiState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text("Save & Sync")
                 }
             } else {

@@ -83,4 +83,9 @@ interface UnifiedSyncApiService {
     suspend fun getAssignedContacts(
         @Path("empId") empId: String
     ): Response<List<AssignedContact>>
+
+    @GET("contacts/team/{empId}")
+    suspend fun getTeamLeads(
+        @Path("empId") empId: String
+    ): Response<List<AssignedContact>>
 }

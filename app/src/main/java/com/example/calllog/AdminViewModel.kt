@@ -25,6 +25,9 @@ class AdminViewModel : ViewModel() {
     private val _reports = MutableStateFlow<List<CallRecord>>(emptyList())
     val reports: StateFlow<List<CallRecord>> = _reports.asStateFlow()
 
+    private val _teamLeadsData = MutableStateFlow<List<AssignedContact>>(emptyList())
+    val teamLeadsData: StateFlow<List<AssignedContact>> = _teamLeadsData.asStateFlow()
+
     private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
@@ -121,6 +124,12 @@ class AdminViewModel : ViewModel() {
     fun loadTransferMembers(empId: String) {
         viewModelScope.launch {
             _transferMembers.value = SyncManager.getTeamMembersForTransfer(empId)
+        }
+    }
+
+    fun loadTeamLeads(empId: String) {
+        viewModelScope.launch {
+            _teamLeadsData.value = SyncManager.getTeamLeads(empId)
         }
     }
 

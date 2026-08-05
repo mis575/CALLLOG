@@ -134,4 +134,8 @@ object SyncManager {
     suspend fun getAssignedContacts(empId: String): List<AssignedContact> {
         return try { api.getAssignedContacts(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
     }
+
+    suspend fun getTeamLeads(empId: String): List<AssignedContact> {
+        return try { api.getTeamLeads(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
 }

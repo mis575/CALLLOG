@@ -59,17 +59,35 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             // Combine system info with DB info (descriptions + saved status)
             val finalLogs = systemLogs.map { systemLog ->
                 dbMap[systemLog.id]?.let { dbLog ->
-                    systemLog.copy(
-                        description = dbLog.description,
-                        contactName = dbLog.contactName,
-                        companyName = dbLog.companyName,
-                        address = dbLog.address,
-                        status = dbLog.status,
-                        email = dbLog.email,
-                        format = dbLog.format,
-                        isSaved = true,
-                        syncedBy = dbLog.syncedBy
-                    )
+                    if (dbLog.isSaved) {
+                        systemLog.copy(
+                            description = dbLog.description,
+                            contactName = dbLog.contactName,
+                            companyName = dbLog.companyName,
+                            address = dbLog.address,
+                            status = dbLog.status,
+                            email = dbLog.email,
+                            format = dbLog.format,
+                            isSaved = true,
+                            syncedBy = dbLog.syncedBy
+                        )
+                    } else {
+                        val assigned = assignedMap[systemLog.number]
+                        val prefilledContactName = if (dbLog.contactName.isNotBlank()) dbLog.contactName else (assigned?.name ?: "")
+                        val prefilledStatus = if (dbLog.status.isNotBlank()) dbLog.status else "Select Status"
+                        val prefilledFormat = if (dbLog.format.isNotBlank()) dbLog.format else "Select Format"
+                        systemLog.copy(
+                            description = dbLog.description,
+                            contactName = prefilledContactName,
+                            companyName = dbLog.companyName,
+                            address = dbLog.address,
+                            status = prefilledStatus,
+                            email = dbLog.email,
+                            format = prefilledFormat,
+                            isSaved = false,
+                            syncedBy = dbLog.syncedBy
+                        )
+                    }
                 } ?: run {
                     val assigned = assignedMap[systemLog.number]
                     systemLog.copy(

@@ -58,18 +58,20 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
 
             // Combine system info with DB info
             val finalLogs = systemLogs.map { systemLog ->
-                dbMap[systemLog.id]?.let { dbLog ->
+                val dbLog = dbMap[systemLog.id]
+                android.util.Log.d("CallLogVM", "systemLog ID: ${systemLog.id}, dbLog ID: ${dbLog?.id}, dbLog isSaved: ${dbLog?.isSaved}")
+                dbLog?.let { dbLogObj ->
                     // Explicitly map all fields including Email and Format
                     systemLog.copy(
-                        description = dbLog.description,
-                        contactName = dbLog.contactName,
-                        companyName = dbLog.companyName,
-                        address = dbLog.address,
-                        status = dbLog.status,
-                        email = dbLog.email,
-                        format = dbLog.format,
-                        isSaved = dbLog.isSaved,
-                        syncedBy = dbLog.syncedBy
+                        description = dbLogObj.description,
+                        contactName = dbLogObj.contactName,
+                        companyName = dbLogObj.companyName,
+                        address = dbLogObj.address,
+                        status = dbLogObj.status,
+                        email = dbLogObj.email,
+                        format = dbLogObj.format,
+                        isSaved = dbLogObj.isSaved,
+                        syncedBy = dbLogObj.syncedBy
                     )
                 } ?: run {
                     val assigned = assignedMap[systemLog.number]
@@ -85,6 +87,7 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     )
                 }
             }
+            android.util.Log.d("CallLogVM", "finalLogs: ${finalLogs.map { "${it.id}:${it.isSaved}" }}")
             
             _todaysLogs.value = finalLogs
         }

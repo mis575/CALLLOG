@@ -202,7 +202,10 @@ fun SyncScreen(
                 Text("No calls recorded today.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(todaysLogs.size) { index ->
+                    items(
+                        count = todaysLogs.size,
+                        key = { index -> todaysLogs[index].id }
+                    ) { index ->
                         CallLogItem(log = todaysLogs[index], viewModel = viewModel, uiState = uiState)
                         Spacer(modifier = Modifier.height(12.dp))
                     }

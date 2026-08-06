@@ -218,6 +218,14 @@ fun SyncScreen(
 @Composable
 fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) {
     var expanded by remember { mutableStateOf(false) }
+    // Local state to track if we just saved this specific item to hide the button immediately
+    var justSaved by remember(log.id) { mutableStateOf(log.isSaved) }
+    
+    // Update local state if the log object itself changes (e.g. after a full reload)
+    LaunchedEffect(log.isSaved) {
+        justSaved = log.isSaved
+    }
+
     val statuses = listOf("Interested", "Not Interested", "Prospect")
 
     Card(
@@ -226,6 +234,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
         border = BorderStroke(1.dp, Color.LightGray)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // ... (rest of the card content)
             // Row 1: Duration | User Name | Time
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
@@ -357,10 +366,13 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 textStyle = MaterialTheme.typography.bodySmall
             )
 
-            if (!log.isSaved) {
+            if (!justSaved) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
-                    onClick = { viewModel.saveCallLog(log) },
+                    onClick = { 
+                        viewModel.saveCallLog(log)
+                        // Note: viewModel.saveCallLog will call loadTodaysLogs which updates log.isSaved
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.small,
                     enabled = uiState !is UiState.Loading

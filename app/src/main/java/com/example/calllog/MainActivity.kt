@@ -40,7 +40,11 @@ class MainActivity : ComponentActivity() {
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
-                ) { _ -> }
+                ) { permissions ->
+                    if (permissions[Manifest.permission.READ_CALL_LOG] == true) {
+                        viewModel.loadTodaysLogs()
+                    }
+                }
 
                 LaunchedEffect(Unit) {
                     permissionLauncher.launch(

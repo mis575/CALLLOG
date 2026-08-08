@@ -4,10 +4,17 @@ import android.content.Context
 import android.provider.CallLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+
 
 class CallLogRepository(private val context: Context) {
 
     suspend fun getCallLogs(): List<CallRecord> = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext emptyList()
+        }
         val callLogs = mutableListOf<CallRecord>()
         val cursor = context.contentResolver.query(
             CallLog.Calls.CONTENT_URI,
@@ -49,6 +56,9 @@ class CallLogRepository(private val context: Context) {
     }
 
     suspend fun getLatestCallLog(): CallRecord? = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext null
+        }
         var latestCall: CallRecord? = null
         val cursor = context.contentResolver.query(
             CallLog.Calls.CONTENT_URI,
@@ -81,6 +91,9 @@ class CallLogRepository(private val context: Context) {
     }
 
     suspend fun getFilteredCallLogs(empId: String, startTime: Long? = null, endTime: Long? = null): List<CallRecord> = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext emptyList()
+        }
         val callLogs = mutableListOf<CallRecord>()
         
         var selection: String? = null

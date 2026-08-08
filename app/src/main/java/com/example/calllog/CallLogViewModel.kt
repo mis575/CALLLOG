@@ -45,50 +45,71 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
 
     fun loadTodaysLogs() {
         viewModelScope.launch(Dispatchers.IO) {
+            // 1. Get system call logs from device
             val systemLogs = repository.getFilteredCallLogs(SyncManager.userEmpId, _startDate.value, _endDate.value)
-            if (systemLogs.isEmpty()) {
-                _todaysLogs.value = emptyList()
-                return@launch
-            }
 
-            // Verify which logs are actually in MongoDB
-            val savedLogsInDb = SyncManager.fetchSavedLogs(systemLogs.map { it.id })
-            val dbMap = savedLogsInDb.associateBy { it.id }
+            // 2. Fetch all saved logs for this user from DB using getFilteredLogs
+            val dbLogs = SyncManager.getFilteredLogs(
+                ids = listOf(SyncManager.userEmpId),
+                start = _startDate.value,
+                end = _endDate.value,
+                includeSubs = false
+            )
+
+            // Create maps for efficient lookup
+            val dbMap = dbLogs.associateBy { it.id }
+            val systemMap = systemLogs.associateBy { it.id }
             val assignedMap = _assignedContacts.value.associateBy { it.number }
 
-            // Combine system info with DB info
-            val finalLogs = systemLogs.map { systemLog ->
+            val mergedLogsList = mutableListOf<CallRecord>()
+
+            // Process all system logs (and update with DB state if saved)
+            systemLogs.forEach { systemLog ->
                 val dbLog = dbMap[systemLog.id]
-                android.util.Log.d("CallLogVM", "systemLog ID: ${systemLog.id}, dbLog ID: ${dbLog?.id}, dbLog isSaved: ${dbLog?.isSaved}")
-                dbLog?.let { dbLogObj ->
-                    // Explicitly map all fields including Email and Format
-                    systemLog.copy(
-                        description = dbLogObj.description,
-                        contactName = dbLogObj.contactName,
-                        companyName = dbLogObj.companyName,
-                        address = dbLogObj.address,
-                        status = dbLogObj.status,
-                        email = dbLogObj.email,
-                        format = dbLogObj.format,
-                        isSaved = dbLogObj.isSaved,
-                        syncedBy = dbLogObj.syncedBy
+                if (dbLog != null) {
+                    // Update system log with database values
+                    mergedLogsList.add(
+                        systemLog.copy(
+                            description = dbLog.description,
+                            contactName = dbLog.contactName,
+                            companyName = dbLog.companyName,
+                            address = dbLog.address,
+                            status = dbLog.status,
+                            email = dbLog.email,
+                            format = dbLog.format,
+                            isSaved = dbLog.isSaved,
+                            syncedBy = dbLog.syncedBy
+                        )
                     )
-                } ?: run {
+                } else {
+                    // Not saved yet, check if it's an assigned lead
                     val assigned = assignedMap[systemLog.number]
-                    systemLog.copy(
-                        isSaved = false,
-                        description = "",
-                        contactName = assigned?.name ?: "",
-                        companyName = "",
-                        address = "",
-                        status = "Select Status",
-                        email = "",
-                        format = "Select Format"
+                    mergedLogsList.add(
+                        systemLog.copy(
+                            isSaved = false,
+                            description = "",
+                            contactName = assigned?.name ?: "",
+                            companyName = "",
+                            address = "",
+                            status = "Select Status",
+                            email = "",
+                            format = "Select Format"
+                        )
                     )
                 }
             }
-            android.util.Log.d("CallLogVM", "finalLogs: ${finalLogs.map { "${it.id}:${it.isSaved}" }}")
+
+            // Next, add any database logs that are NOT in the system call logs
+            dbLogs.forEach { dbLog ->
+                if (!systemMap.containsKey(dbLog.id)) {
+                    mergedLogsList.add(dbLog)
+                }
+            }
+
+            // Sort merged list by date descending so newest calls are first
+            val finalLogs = mergedLogsList.sortedByDescending { it.date }
             
+            android.util.Log.d("CallLogVM", "Merged call logs count: ${finalLogs.size}")
             _todaysLogs.value = finalLogs
         }
     }

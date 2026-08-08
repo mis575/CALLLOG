@@ -13,6 +13,7 @@ import com.example.calllog.data.UpdateHierarchyRequest
 import com.example.calllog.data.ContactAssignmentRequest
 import com.example.calllog.data.AssignResponse
 import com.example.calllog.data.AssignedContact
+import com.example.calllog.data.VersionInfo
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -88,4 +89,7 @@ interface UnifiedSyncApiService {
     suspend fun getTeamLeads(
         @Path("empId") empId: String
     ): Response<List<AssignedContact>>
+
+    @GET("version")
+    suspend fun getVersionInfo(): Response<VersionInfo>
 }

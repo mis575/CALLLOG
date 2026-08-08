@@ -107,7 +107,7 @@ object SyncManager {
         var attempts = 3
         while (attempts > 0) {
             try {
-                val response = api.syncCallLogs(SyncRequest(userName, logs))
+                val response = api.syncCallLogs(SyncRequest(userName, userEmpId, logs))
                 if (response.isSuccessful) return true
             } catch (e: Exception) {
                 // Ignore transient errors and retry
@@ -137,5 +137,9 @@ object SyncManager {
 
     suspend fun getTeamLeads(empId: String): List<AssignedContact> {
         return try { api.getTeamLeads(empId).body() ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun getLatestVersion(): VersionInfo? {
+        return try { api.getVersionInfo().body() } catch (e: Exception) { null }
     }
 }

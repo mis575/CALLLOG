@@ -15,6 +15,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calllog.network.SyncManager
+import com.example.calllog.data.VersionInfo
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.example.calllog.ui.ExecutiveDashboard
 import com.example.calllog.ui.LoginScreen
 import com.example.calllog.ui.ManagementDashboard
@@ -37,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
                 val isLoggedIn by SyncManager.isLoggedIn.collectAsState()
                 var refreshCounter by remember { mutableIntStateOf(0) }
+                var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
@@ -53,6 +59,55 @@ class MainActivity : ComponentActivity() {
                             Manifest.permission.CALL_PHONE,
                             Manifest.permission.READ_PHONE_STATE
                         )
+                    )
+                    
+                    // Startup version check
+                    try {
+                        val latest = SyncManager.getLatestVersion()
+                        if (latest != null) {
+                            val packageInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
+                            val currentVersion = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                packageInfo.longVersionCode
+                            } else {
+                                @Suppress("DEPRECATION")
+                                packageInfo.versionCode.toLong()
+                            }
+                            if (latest.latestVersionCode > currentVersion) {
+                                updateInfo = latest
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Version check failed: ${e.message}", e)
+                    }
+                }
+
+                updateInfo?.let { info ->
+                    val context = LocalContext.current
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { /* Prevent dismiss on outside touch */ },
+                        title = { androidx.compose.material3.Text("Update Available") },
+                        text = { androidx.compose.material3.Text("A new version (${info.latestVersionName}) is available. Please update to get the latest features and fixes.") },
+                        confirmButton = {
+                            androidx.compose.material3.Button(onClick = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.updateUrl)).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open browser: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                }
+                            }) {
+                                androidx.compose.material3.Text("Update Now")
+                            }
+                        },
+                        dismissButton = {
+                            if (!info.forceUpdate) {
+                                androidx.compose.material3.TextButton(onClick = { updateInfo = null }) {
+                                    androidx.compose.material3.Text("Later")
+                                }
+                            }
+                        }
                     )
                 }
 

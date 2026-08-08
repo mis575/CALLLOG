@@ -44,6 +44,7 @@ data class LoginRequest(
 @Serializable
 data class SyncRequest(
     val userName: String,
+    val empId: String = "",
     val logs: List<CallRecord>
 )
 
@@ -133,4 +134,12 @@ data class ContactAssignmentRequest(
 data class AssignResponse(
     val success: Boolean,
     val message: String
+)
+
+@Serializable
+data class VersionInfo(
+    val latestVersionCode: Int,
+    val latestVersionName: String,
+    val updateUrl: String,
+    val forceUpdate: Boolean = false
 )

@@ -35,14 +35,9 @@ class AdminViewModel : ViewModel() {
     private val _endDate = MutableStateFlow<Long?>(null)
 
     init {
-        // Default to Today for reports
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        _startDate.value = cal.timeInMillis
-        _endDate.value = System.currentTimeMillis()
+        // Default to All for reports
+        _startDate.value = null
+        _endDate.value = null
     }
 
     fun setDateRange(start: Long?, end: Long?) {
@@ -152,12 +147,37 @@ class AdminViewModel : ViewModel() {
         val csv = StringBuilder("ID,User,Number,Caller,Type,Date,Duration,Notes,Contact,Company,Address,Status\n")
         val df = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         _reports.value.forEach { l ->
-            csv.append("${l.id},${l.syncedBy ?: "Unknown"},${l.number},${l.name ?: "Unknown"},${l.type},${df.format(Date(l.date))},${l.duration}s,${l.description},${l.contactName},${l.companyName},${l.address},${l.status}\n")
+            csv.append("${l.id},${l.syncedBy ?: "Unknown"},${l.number},${l.name ?: "Unknown"},${l.type},${df.format(Date(l.date))},${l.duration}s,${l.description.replace(",", " ")},${l.contactName.replace(",", " ")},${l.companyName.replace(",", " ")},${l.address.replace(",", " ")},${l.status}\n")
         }
+
+        val filename = "Report_${System.currentTimeMillis()}.csv"
+
         return try {
-            val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Report_${System.currentTimeMillis()}.csv")
-            FileOutputStream(file).use { it.write(csv.toString().toByteArray()) }
-            file.absolutePath
-        } catch (e: Exception) { null }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    resolver.openOutputStream(uri).use { outputStream ->
+                        outputStream?.write(csv.toString().toByteArray())
+                    }
+                    "Downloads/$filename"
+                } else null
+            } else {
+                @Suppress("DEPRECATION")
+                val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadDir.exists()) downloadDir.mkdirs()
+                val file = File(downloadDir, filename)
+                FileOutputStream(file).use { it.write(csv.toString().toByteArray()) }
+                file.absolutePath
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AdminVM", "Export error: ${e.message}", e)
+            null
+        }
     }
 }

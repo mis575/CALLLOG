@@ -54,6 +54,14 @@ fun SyncScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(10000)
+            viewModel.loadTodaysLogs()
+            viewModel.loadAssignedContacts()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

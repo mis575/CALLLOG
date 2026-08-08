@@ -20,6 +20,19 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.example.calllog.ui.ExecutiveDashboard
 import com.example.calllog.ui.LoginScreen
 import com.example.calllog.ui.ManagementDashboard
@@ -81,6 +94,31 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                val coroutineScope = rememberCoroutineScope()
+                var downloadProgress by remember { mutableFloatStateOf(-1f) }
+
+                if (downloadProgress >= 0f) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { /* Prevent dismiss during download */ },
+                        title = { androidx.compose.material3.Text("Downloading Update") },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            ) {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = downloadProgress,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                androidx.compose.material3.Text("${(downloadProgress * 100).toInt()}%")
+                            }
+                        },
+                        confirmButton = {},
+                        dismissButton = {}
+                    )
+                }
+
                 updateInfo?.let { info ->
                     val context = LocalContext.current
                     androidx.compose.material3.AlertDialog(
@@ -89,13 +127,35 @@ class MainActivity : ComponentActivity() {
                         text = { androidx.compose.material3.Text("A new version (${info.latestVersionName}) is available. Please update to get the latest features and fixes.") },
                         confirmButton = {
                             androidx.compose.material3.Button(onClick = {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.updateUrl)).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    if (!context.packageManager.canRequestPackageInstalls()) {
+                                        try {
+                                            val settingsIntent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                                data = Uri.parse("package:${context.packageName}")
+                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                            }
+                                            context.startActivity(settingsIntent)
+                                            Toast.makeText(context, "Please enable permission to install updates and try again.", Toast.LENGTH_LONG).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Failed to open settings: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                        }
+                                        return@Button
                                     }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Cannot open browser: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                }
+
+                                // Start download
+                                downloadProgress = 0f
+                                coroutineScope.launch {
+                                    val destinationFile = File(context.getExternalFilesDir(null), "app-update.apk")
+                                    val success = downloadApk(info.updateUrl, destinationFile) { progress ->
+                                        downloadProgress = progress / 100f
+                                    }
+                                    downloadProgress = -1f // Hide dialog
+                                    if (success) {
+                                        installApk(context, destinationFile)
+                                    } else {
+                                        Toast.makeText(context, "Download failed.", Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             }) {
                                 androidx.compose.material3.Text("Update Now")
@@ -127,5 +187,58 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private suspend fun downloadApk(urlString: String, outputFile: File, onProgress: (Int) -> Unit): Boolean {
+    return withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
+        try {
+            val url = URL(urlString)
+            connection = url.openConnection() as HttpURLConnection
+            connection.connect()
+
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return@withContext false
+            }
+
+            val fileLength = connection.contentLength
+            val input = connection.inputStream
+            val output = FileOutputStream(outputFile)
+
+            val data = ByteArray(4096)
+            var total: Long = 0
+            var count: Int
+            while (input.read(data).also { count = it } != -1) {
+                total += count
+                if (fileLength > 0) {
+                    onProgress((total * 100 / fileLength).toInt())
+                }
+                output.write(data, 0, count)
+            }
+            output.flush()
+            output.close()
+            input.close()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("AppUpdater", "Download failed: ${e.message}", e)
+            false
+        } finally {
+            connection?.disconnect()
+        }
+    }
+}
+
+private fun installApk(context: android.content.Context, file: File) {
+    try {
+        val authority = "${context.packageName}.fileprovider"
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Installation failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
     }
 }

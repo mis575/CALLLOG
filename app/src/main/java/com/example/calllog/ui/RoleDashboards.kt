@@ -106,10 +106,25 @@ fun ManagementDashboard(role: String) {
         adminVM.loadMembers(currentBrowsingId)
         adminVM.loadAllUsers()
         
-        // Fix: Default to Individual report when entering a level
-        // (User said: clicking on manager should show his own report)
-        adminVM.loadReports(listOf(currentBrowsingId), includeSubs = false)
+        // Default to Team/Subordinate report when entering a level
+        // (This allows Admin to see all, Manager to see all team, TL to see all team by default)
+        adminVM.loadReports(listOf(currentBrowsingId), includeSubs = true)
         selectedEmpId = "" 
+    }
+
+    // Real-time polling loop (runs every 10 seconds to auto-refresh data)
+    LaunchedEffect(currentBrowsingId, selectedEmpId, currentTab) {
+        if (currentTab == 0) {
+            while (true) {
+                kotlinx.coroutines.delay(10000)
+                adminVM.loadMembers(currentBrowsingId)
+                if (selectedEmpId.isNotEmpty()) {
+                    adminVM.loadReports(listOf(selectedEmpId), includeSubs = false)
+                } else {
+                    adminVM.loadReports(listOf(currentBrowsingId), includeSubs = true)
+                }
+            }
+        }
     }
 
     LaunchedEffect(showUserManagement) { if(showUserManagement) adminVM.loadAllUsers() }
@@ -250,6 +265,14 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(10000)
+            viewModel.loadTodaysLogs()
+            viewModel.loadAssignedContacts()
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -309,7 +332,7 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
 
 @Composable
 fun DateFilterRow(onFilterChange: (Long?, Long?) -> Unit) {
-    var selectedFilter by remember { mutableStateOf("Today") }
+    var selectedFilter by remember { mutableStateOf("All") }
     val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
     var showCustomDialog by remember { mutableStateOf(false) }
     var customLabel by remember { mutableStateOf("") }
@@ -510,11 +533,48 @@ fun DashboardMainView(
 
         HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
-        if (role != "Admin" || selectedEmpId.isNotEmpty()) {
-            if(uiState is UiState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            else {
-                val reportTitle = if(selectedEmpId.isEmpty()) "Individual Report" else "Team/Member Report"
+        if (true) { // Always show reports/summary section
+            if (uiState is UiState.Loading && reports.isEmpty()) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            } else {
+                val reportTitle = if (selectedEmpId.isEmpty()) "Team/Overall Report" else "Individual Report"
                 Text(reportTitle, fontWeight = FontWeight.Bold)
+
+                // Summary Statistics Card
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    border = BorderStroke(1.dp, Color.LightGray)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("Report Summary", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.DarkGray)
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
+                                Text("${reports.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Interested", fontSize = 10.sp, color = Color.Gray)
+                                Text("${reports.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Not Interested", fontSize = 10.sp, color = Color.Gray)
+                                Text("${reports.count { it.status.equals("Not Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE53935))
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Prospect", fontSize = 10.sp, color = Color.Gray)
+                                Text("${reports.count { it.status.equals("Prospect", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
                 Box(Modifier.weight(0.6f)) {
                     if (reports.isEmpty()) {
                         Text("No records found.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
@@ -527,17 +587,13 @@ fun DashboardMainView(
                     }
                 }
             }
-        } else {
-            Box(Modifier.weight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Select a person or click 📊 to see team reports.", color = Color.Gray)
-            }
         }
     }
 }
 
 @Composable
 fun DuplicateDateFilterRow(onFilterChange: (Long?, Long?) -> Unit) {
-    var selectedFilter by remember { mutableStateOf("Today") }
+    var selectedFilter by remember { mutableStateOf("All") }
     val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
     var showCustomDialog by remember { mutableStateOf(false) }
     var customLabel by remember { mutableStateOf("") }

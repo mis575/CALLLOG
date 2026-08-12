@@ -4,20 +4,26 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -32,15 +38,26 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+private val PrimaryBlue  = Color(0xFF1565C0)
+private val AccentBlue   = Color(0xFF42A5F5)
+private val GreenOk      = Color(0xFF2E7D32)
+private val GreenLight   = Color(0xFFE8F5E9)
+private val OrangeOk     = Color(0xFFE65100)
+private val OrangeLight  = Color(0xFFFFF3E0)
+private val RedOk        = Color(0xFFC62828)
+private val RedLight     = Color(0xFFFFEBEE)
+private val BlueLight    = Color(0xFFE3F2FD)
+private val DividerColor = Color(0xFFE0E0E0)
+
 @Composable
 fun SyncScreen(
     viewModel: CallLogViewModel,
     hideAdminButton: Boolean = false,
     onNavigateToAdmin: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState    by viewModel.uiState.collectAsState()
     val todaysLogs by viewModel.todaysLogs.collectAsState()
-    val context = LocalContext.current
+    val context    = LocalContext.current
     var phoneNumber by remember { mutableStateOf("") }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -63,423 +80,357 @@ fun SyncScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // --- HEADER (JJ CRM | User | Logout) ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.border(1.dp, Color.Gray, MaterialTheme.shapes.small),
-                shape = MaterialTheme.shapes.small
-            ) {
-                Text(text = "JJ CRM", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.Bold)
-            }
-            
-            Surface(
-                modifier = Modifier.border(1.dp, Color.Gray, MaterialTheme.shapes.small),
-                shape = MaterialTheme.shapes.small
-            ) {
-                Text(text = SyncManager.userName, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
-            }
+    var selectedFilter by remember { mutableStateOf("Today") }
+    val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
+    var showCustomDialog by remember { mutableStateOf(false) }
+    var customLabel by remember { mutableStateOf("") }
+    val df = SimpleDateFormat("dd MMM", Locale.getDefault())
 
-            Button(
-                onClick = { SyncManager.logout(context) },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.error),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA))) {
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.horizontalGradient(listOf(Color(0xFF0D47A1), Color(0xFF1976D2))))
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Logout", fontSize = 12.sp)
+                Column {
+                    Text("JJ CRM", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Color.White)
+                    Text(SyncManager.userName, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+                }
+                OutlinedButton(
+                    onClick = { SyncManager.logout(context) },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text("Logout", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        if (uiState is UiState.Loading)
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = AccentBlue, trackColor = Color.Transparent)
+        else if (uiState is UiState.Error)
+            Text((uiState as UiState.Error).errorMessage, color = RedOk,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp), fontSize = 11.sp)
 
-        // --- DIALER ---
-        Text(text = "Make a Call", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            TextField(
-                value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = { Text("Phone Number") },
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { 
-                if (phoneNumber.isNotBlank()) { 
-                    AppCallTracker.recordCall(context, phoneNumber, SyncManager.userEmpId)
-                    makeCall(context, phoneNumber) 
-                } 
-            }) {
-                Text("Call")
-            }
-        }
-
-        AssignedLeadsSection(
-            viewModel = viewModel,
-            onLeadClick = { phoneNumber = it }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- DATE FILTER ---
-        var selectedFilter by remember { mutableStateOf("Today") }
-        val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
-        var showCustomDialog by remember { mutableStateOf(false) }
-        var customLabel by remember { mutableStateOf("") }
-        val df = SimpleDateFormat("dd MMM", Locale.getDefault())
-
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            filters.forEach { filter ->
-                val label = if (filter == "Custom" && customLabel.isNotEmpty()) customLabel else filter
-                FilterChip(
-                    selected = selectedFilter == filter,
-                    onClick = { 
-                        if (filter == "Custom") {
-                            showCustomDialog = true
-                        } else {
-                            selectedFilter = filter
-                            customLabel = ""
-                            val cal = Calendar.getInstance()
-                            cal.set(Calendar.HOUR_OF_DAY, 0)
-                            cal.set(Calendar.MINUTE, 0)
-                            cal.set(Calendar.SECOND, 0)
-                            cal.set(Calendar.MILLISECOND, 0)
-                            
-                            when(filter) {
-                                "Today" -> viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis())
-                                "Yesterday" -> {
-                                    val end = cal.timeInMillis - 1
-                                    cal.add(Calendar.DAY_OF_YEAR, -1)
-                                    viewModel.setDateRange(cal.timeInMillis, end)
-                                }
-                                "Last 7 Days" -> {
-                                    cal.add(Calendar.DAY_OF_YEAR, -7)
-                                    viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis())
-                                }
-                                "Last Month" -> {
-                                    cal.add(Calendar.MONTH, -1)
-                                    viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis())
-                                }
-                                else -> viewModel.setDateRange(null, null)
-                            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp, 16.dp, 16.dp, 0.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Make a Call", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = PrimaryBlue)
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = phoneNumber,
+                                onValueChange = { phoneNumber = it },
+                                label = { Text("Phone Number", fontSize = 12.sp) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Button(
+                                onClick = {
+                                    if (phoneNumber.isNotBlank()) {
+                                        AppCallTracker.recordCall(context, phoneNumber, SyncManager.userEmpId)
+                                        makeCall(context, phoneNumber)
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
+                            ) { Text("Call", fontWeight = FontWeight.Bold) }
                         }
-                    },
-                    label = { Text(label, fontSize = 9.sp) }
-                )
-            }
-        }
-
-        if (showCustomDialog) {
-            CustomDateRangeDialog(
-                onDismiss = { showCustomDialog = false },
-                onApply = { start, end ->
-                    selectedFilter = "Custom"
-                    customLabel = "${df.format(Date(start))}-${df.format(Date(end))}"
-                    viewModel.setDateRange(start, end)
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (!hideAdminButton && (SyncManager.userRole == "Manager" || SyncManager.userRole == "TL" || SyncManager.userRole == "Admin")) {
-            Button(onClick = onNavigateToAdmin, modifier = Modifier.fillMaxWidth()) { Text("Go to Management Dashboard") }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // --- TODAY CALL LOG ---
-        Text(text = "Today Call Log", style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Executive Tracking Stats Card
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            border = BorderStroke(1.dp, Color.LightGray)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text("Total Calls", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${todaysLogs.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text("Interested", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text("Follow Up", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${todaysLogs.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text("Enquiry Received", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text("No Enquiry", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${todaysLogs.count { it.enquiryReceived.equals("No", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD32F2F))
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Box(modifier = Modifier.weight(1f)) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                AssignedLeadsSection(viewModel = viewModel, onLeadClick = { phoneNumber = it })
+            }
+
+            item {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    filters.forEach { filter ->
+                        val label = if (filter == "Custom" && customLabel.isNotEmpty()) customLabel else filter
+                        FilterChip(
+                            selected = selectedFilter == filter,
+                            onClick = {
+                                if (filter == "Custom") { showCustomDialog = true } else {
+                                    selectedFilter = filter; customLabel = ""
+                                    val cal = Calendar.getInstance()
+                                    cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+                                    cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+                                    when (filter) {
+                                        "Today"       -> viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis())
+                                        "Yesterday"   -> { val e = cal.timeInMillis - 1; cal.add(Calendar.DAY_OF_YEAR, -1); viewModel.setDateRange(cal.timeInMillis, e) }
+                                        "Last 7 Days" -> { cal.add(Calendar.DAY_OF_YEAR, -7); viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis()) }
+                                        "Last Month"  -> { cal.add(Calendar.MONTH, -1); viewModel.setDateRange(cal.timeInMillis, System.currentTimeMillis()) }
+                                        else          -> viewModel.setDateRange(null, null)
+                                    }
+                                }
+                            },
+                            label = { Text(label, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = PrimaryBlue, selectedLabelColor = Color.White)
+                        )
+                    }
+                }
+            }
+
+            if (!hideAdminButton && (SyncManager.userRole == "Manager" || SyncManager.userRole == "TL" || SyncManager.userRole == "Admin")) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = onNavigateToAdmin, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F))
+                    ) { Text("Go to Management Dashboard", fontWeight = FontWeight.SemiBold) }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.width(4.dp).height(20.dp).background(PrimaryBlue, RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Today Call Log", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A1A2E))
+                    Spacer(Modifier.weight(1f))
+                    Surface(shape = RoundedCornerShape(12.dp), color = BlueLight) {
+                        Text("${todaysLogs.size} calls", fontSize = 11.sp, color = PrimaryBlue, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(10.dp))
+                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(4.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatPill("Total",      "${todaysLogs.size}", PrimaryBlue, BlueLight,   Modifier.weight(1f))
+                            StatPill("Interested", "${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", GreenOk, GreenLight, Modifier.weight(1f))
+                            StatPill("Follow Up",  "${todaysLogs.count { it.status.equals("Follow Up",  ignoreCase = true) }}", OrangeOk, OrangeLight, Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(color = DividerColor)
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatPill("Enquiry",    "${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}", GreenOk, GreenLight, Modifier.weight(1f))
+                            StatPill("No Enquiry", "${todaysLogs.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}", RedOk,   RedLight,   Modifier.weight(1f))
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
             if (todaysLogs.isEmpty()) {
-                Text("No calls recorded today.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(
-                        count = todaysLogs.size,
-                        key = { index -> todaysLogs[index].id }
-                    ) { index ->
-                        CallLogItem(log = todaysLogs[index], viewModel = viewModel, uiState = uiState)
-                        Spacer(modifier = Modifier.height(12.dp))
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No calls recorded", style = MaterialTheme.typography.bodyLarge, color = Color.Gray)
+                        }
                     }
+                }
+            } else {
+                items(items = todaysLogs, key = { it.id }) { log ->
+                    CallLogItem(log = log, viewModel = viewModel, uiState = uiState)
+                    Spacer(Modifier.height(10.dp))
                 }
             }
         }
+    }
 
-        if (uiState is UiState.Loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        else if (uiState is UiState.Error) Text((uiState as UiState.Error).errorMessage, color = MaterialTheme.colorScheme.error)
+    if (showCustomDialog) {
+        CustomDateRangeDialog(onDismiss = { showCustomDialog = false },
+            onApply = { start, end ->
+                selectedFilter = "Custom"
+                customLabel = "${df.format(Date(start))}-${df.format(Date(end))}"
+                viewModel.setDateRange(start, end)
+            }
+        )
+    }
+}
+
+@Composable
+private fun StatPill(label: String, value: String, textColor: Color, bgColor: Color, modifier: Modifier = Modifier) {
+    Surface(shape = RoundedCornerShape(12.dp), color = bgColor, modifier = modifier) {
+        Column(modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = textColor)
+            Text(label,  fontSize = 9.sp, color = textColor.copy(alpha = 0.75f), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
 @Composable
 fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) {
     var expanded by remember { mutableStateOf(false) }
-    // Local state to track if we just saved this specific item to hide the button immediately
     var justSaved by remember(log.id) { mutableStateOf(log.isSaved) }
     var showEnquiryDialog by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-    
-    // Update local state if the log object itself changes (e.g. after a full reload)
-    LaunchedEffect(log.isSaved) {
-        justSaved = log.isSaved
+
+    LaunchedEffect(log.isSaved) { justSaved = log.isSaved }
+
+    val statusColor = when (log.status.lowercase()) {
+        "interested"     -> GreenOk
+        "follow up"      -> OrangeOk
+        "not interested" -> RedOk
+        "prospect"       -> Color(0xFF6A1B9A)
+        else             -> Color(0xFF78909C)
+    }
+    val statusBg = when (log.status.lowercase()) {
+        "interested"     -> GreenLight
+        "follow up"      -> OrangeLight
+        "not interested" -> RedLight
+        "prospect"       -> Color(0xFFF3E5F5)
+        else             -> Color(0xFFECEFF1)
     }
 
     val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up")
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 520.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, Color.LightGray)
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(3.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.5.dp, statusColor.copy(alpha = 0.25f))
     ) {
-        Column(modifier = Modifier
-            .padding(12.dp)
-            .verticalScroll(scrollState)
-        ) {
-            // Row 1: Duration | User Name | Time
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
-                    Text(text = "Duration: ${log.duration}s", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MetaChip("${log.duration}s")
+                    MetaChip(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)))
                 }
-                Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
-                    Text(text = "User: ${log.syncedBy ?: SyncManager.userName}", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
-                }
-                Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
-                    Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)), modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 2: Contact Person | Company Name
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = log.contactName,
-                    onValueChange = { viewModel.updateCallDetails(log.id, contactName = it) },
-                    label = { Text("Contact Person", fontSize = 10.sp) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !log.isSaved,
-                    textStyle = MaterialTheme.typography.bodySmall
-                )
-                TextField(
-                    value = log.companyName,
-                    onValueChange = { viewModel.updateCallDetails(log.id, companyName = it) },
-                    label = { Text("Company Name", fontSize = 10.sp) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !log.isSaved,
-                    textStyle = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 3: Address | Status Selection
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = log.address,
-                    onValueChange = { viewModel.updateCallDetails(log.id, address = it) },
-                    label = { Text("Address", fontSize = 10.sp) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !log.isSaved,
-                    textStyle = LocalTextStyle.current.copy(fontSize = 12.sp)
-                )
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = { if (!log.isSaved) expanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !log.isSaved,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(text = log.status, fontSize = 12.sp)
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        statuses.forEach { s ->
-                            DropdownMenuItem(
-                                text = { Text(s) },
-                                onClick = { 
-                                    if (s == "Interested") {
-                                        showEnquiryDialog = true
-                                    } else {
-                                        viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
-                                    }
-                                    expanded = false 
-                                }
-                            )
-                        }
-                    }
+                Surface(shape = RoundedCornerShape(20.dp), color = statusBg) {
+                    Text(log.status, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 3.5: Email | Format Dropdown
-            var formatExpanded by remember { mutableStateOf(false) }
-            val formats = listOf(
-                "General Catalogue Sharing (Format 0005)",
-                "Collaboration Opportunity (Format 0003)",
-                "Revolutionize Your Printing (Format 0002)",
-                "Elevate Your Brand (Format 0004)"
-            )
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = log.email,
-                    onValueChange = { viewModel.updateCallDetails(log.id, email = it) },
-                    label = { Text("Email", fontSize = 10.sp) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !log.isSaved,
-                    textStyle = MaterialTheme.typography.bodySmall
-                )
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = { if (!log.isSaved) formatExpanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !log.isSaved,
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = log.format, 
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    }
-                    DropdownMenu(expanded = formatExpanded, onDismissRequest = { formatExpanded = false }) {
-                        formats.forEach { f ->
-                            DropdownMenuItem(
-                                text = { Text(f) },
-                                onClick = { 
-                                    viewModel.updateCallDetails(log.id, format = f)
-                                    formatExpanded = false 
-                                }
-                            )
-                        }
-                    }
+            Text(log.number, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF1A1A2E), modifier = Modifier.padding(vertical = 6.dp))
+            if (log.enquiryReceived.isNotBlank()) {
+                val isYes = log.enquiryReceived.equals("Yes", true)
+                Surface(shape = RoundedCornerShape(8.dp), color = if (isYes) GreenLight else RedLight) {
+                    Text(if (isYes) "Enquiry Received" else "No Enquiry",
+                        fontSize = 10.sp, color = if (isYes) GreenOk else RedOk, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                 }
+                Spacer(Modifier.height(6.dp))
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 4: Description
-            TextField(
-                value = log.description,
-                onValueChange = { viewModel.updateCallDetails(log.id, description = it) },
-                label = { Text("Description", fontSize = 10.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !log.isSaved,
-                minLines = 1,
-                textStyle = MaterialTheme.typography.bodySmall
-            )
-
-            if (!justSaved) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { 
-                        viewModel.saveCallLog(log.id)
-                        // viewModel.saveCallLog looks up latest log by ID to avoid stale closure bug
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.small,
-                    enabled = uiState !is UiState.Loading
-                ) {
-                    if (uiState is UiState.Loading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text("Save & Sync")
+            if (justSaved) {
+                if (log.contactName.isNotBlank() || log.companyName.isNotBlank() || log.description.isNotBlank()) {
+                    HorizontalDivider(color = DividerColor); Spacer(Modifier.height(6.dp))
+                    if (log.contactName.isNotBlank()) SavedRow("Contact", log.contactName)
+                    if (log.companyName.isNotBlank()) SavedRow("Company", log.companyName)
+                    if (log.address.isNotBlank())     SavedRow("Address", log.address)
+                    if (log.email.isNotBlank())        SavedRow("Email",   log.email)
+                    if (log.description.isNotBlank())  SavedRow("Notes",   log.description)
                 }
+                Spacer(Modifier.height(4.dp))
+                Text("Saved & Synced", color = GreenOk, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
             } else {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("✓ Saved", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.CenterHorizontally))
+                HorizontalDivider(color = DividerColor); Spacer(Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrmField("Contact Person", log.contactName, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, contactName = it) }
+                    CrmField("Company Name",  log.companyName,  true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, companyName = it) }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrmField("Address", log.address, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, address = it) }
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
+                            Text(log.status, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = statusColor, fontWeight = FontWeight.SemiBold)
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            statuses.forEach { s ->
+                                DropdownMenuItem(text = { Text(s) }, onClick = {
+                                    if (s == "Interested") showEnquiryDialog = true else viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
+                                    expanded = false
+                                })
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                var formatExpanded by remember { mutableStateOf(false) }
+                val formats = listOf("General Catalogue Sharing (Format 0005)", "Collaboration Opportunity (Format 0003)", "Revolutionize Your Printing (Format 0002)", "Elevate Your Brand (Format 0004)")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrmField("Email", log.email, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, email = it) }
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { formatExpanded = true }, modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
+                            Text(log.format, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        DropdownMenu(expanded = formatExpanded, onDismissRequest = { formatExpanded = false }) {
+                            formats.forEach { f -> DropdownMenuItem(text = { Text(f) }, onClick = { viewModel.updateCallDetails(log.id, format = f); formatExpanded = false }) }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                CrmField("Description / Notes", log.description, true, Modifier.fillMaxWidth(), minLines = 2) { viewModel.updateCallDetails(log.id, description = it) }
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = { viewModel.saveCallLog(log.id) }, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue), enabled = uiState !is UiState.Loading) {
+                    if (uiState is UiState.Loading) { CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
+                    Text("Save & Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
             }
         }
     }
 
     if (showEnquiryDialog) {
-        AlertDialog(
-            onDismissRequest = { showEnquiryDialog = false },
-            title = { Text("Enquiry Received?") },
-            text = { Text("Did you receive an enquiry for this call?") },
+        AlertDialog(onDismissRequest = { showEnquiryDialog = false }, shape = RoundedCornerShape(20.dp),
+            title = { Text("Enquiry Received?", fontWeight = FontWeight.Bold) },
+            text  = { Text("Did you receive an enquiry for this call?") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.updateCallDetails(log.id, status = "Interested", enquiryReceived = "Yes")
-                    showEnquiryDialog = false
-                }) {
-                    Text("Yes")
-                }
+                Button(onClick = { viewModel.updateCallDetails(log.id, status = "Interested", enquiryReceived = "Yes"); showEnquiryDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenOk), shape = RoundedCornerShape(10.dp)) { Text("Yes") }
             },
             dismissButton = {
-                Button(onClick = {
-                    viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No")
-                    showEnquiryDialog = false
-                }) {
-                    Text("No")
-                }
+                Button(onClick = { viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No"); showEnquiryDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedOk), shape = RoundedCornerShape(10.dp)) { Text("No") }
             }
         )
     }
+}
+
+@Composable
+private fun MetaChip(text: String) {
+    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFF0F4FF)) {
+        Text(text, fontSize = 10.sp, color = PrimaryBlue, modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp))
+    }
+}
+
+@Composable
+private fun SavedRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(label, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.width(80.dp))
+        Text(value, fontSize = 11.sp, color = Color(0xFF1A1A2E), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun CrmField(label: String, value: String, enabled: Boolean, modifier: Modifier = Modifier, minLines: Int = 1, onValueChange: (String) -> Unit) {
+    OutlinedTextField(value = value, onValueChange = onValueChange, label = { Text(label, fontSize = 10.sp) },
+        modifier = modifier, enabled = enabled, shape = RoundedCornerShape(10.dp), minLines = minLines,
+        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp))
 }
 
 private fun makeCall(context: Context, number: String) {

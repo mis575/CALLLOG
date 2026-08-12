@@ -103,21 +103,28 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                         )
                     )
                 } else {
-                    // Not saved yet, check if it's an assigned lead
+                    // Not saved yet — preserve any in-progress edits the user has already typed
+                    // so that auto-refresh doesn't wipe their unsaved work
+                    val inProgress = _todaysLogs.value.find { it.id == systemLog.id }
                     val assigned = assignedMap[systemLog.number]
-                    mergedLogsList.add(
-                        systemLog.copy(
-                            isSaved = false,
-                            description = "",
-                            contactName = assigned?.name ?: "",
-                            companyName = "",
-                            address = "",
-                            status = "Select Status",
-                            email = "",
-                            format = "Select Format",
-                            enquiryReceived = ""
+                    if (inProgress != null && !inProgress.isSaved) {
+                        // User has already started editing this log — keep their current edits
+                        mergedLogsList.add(inProgress)
+                    } else {
+                        mergedLogsList.add(
+                            systemLog.copy(
+                                isSaved = false,
+                                description = "",
+                                contactName = assigned?.name ?: "",
+                                companyName = "",
+                                address = "",
+                                status = "Select Status",
+                                email = "",
+                                format = "Select Format",
+                                enquiryReceived = ""
+                            )
                         )
-                    )
+                    }
                 }
             }
 

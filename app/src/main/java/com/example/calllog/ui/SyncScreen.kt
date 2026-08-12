@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -277,6 +278,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
     // Local state to track if we just saved this specific item to hide the button immediately
     var justSaved by remember(log.id) { mutableStateOf(log.isSaved) }
     var showEnquiryDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
     
     // Update local state if the log object itself changes (e.g. after a full reload)
     LaunchedEffect(log.isSaved) {
@@ -286,11 +288,16 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
     val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up")
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 520.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = BorderStroke(1.dp, Color.LightGray)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier
+            .padding(12.dp)
+            .verticalScroll(scrollState)
+        ) {
             // Row 1: Duration | User Name | Time
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {

@@ -180,4 +180,21 @@ class AdminViewModel : ViewModel() {
             null
         }
     }
+
+    fun syncLeadsFromSheet(context: Context) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch {
+            try {
+                val res = SyncManager.syncLeadsFromSheet()
+                if (res.success) {
+                    _uiState.value = UiState.Success(res.message)
+                    loadTeamLeads(SyncManager.userEmpId)
+                } else {
+                    _uiState.value = UiState.Error(res.message)
+                }
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Sync failed: ${e.localizedMessage}")
+            }
+        }
+    }
 }

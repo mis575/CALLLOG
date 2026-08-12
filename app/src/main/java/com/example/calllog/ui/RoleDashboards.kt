@@ -1023,9 +1023,22 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Leads Management", fontWeight = FontWeight.Bold)
-            if (selectedLeads.isNotEmpty()) {
-                Button(onClick = { showTransferDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00))) {
-                    Text("Transfer (${selectedLeads.size})", fontSize = 12.sp)
+            val context = LocalContext.current
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { adminVM.syncLeadsFromSheet(context) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text("Sync Sheet Leads", fontSize = 11.sp)
+                }
+                if (selectedLeads.isNotEmpty()) {
+                    Button(
+                        onClick = { showTransferDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Transfer (${selectedLeads.size})", fontSize = 11.sp)
+                    }
                 }
             }
         }

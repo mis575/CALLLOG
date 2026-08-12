@@ -90,6 +90,9 @@ interface UnifiedSyncApiService {
         @Path("empId") empId: String
     ): Response<List<AssignedContact>>
 
+    @POST("contacts/sync-from-sheet")
+    suspend fun syncLeadsFromSheet(): Response<AssignResponse>
+
     @GET("version")
     suspend fun getVersionInfo(): Response<VersionInfo>
 }

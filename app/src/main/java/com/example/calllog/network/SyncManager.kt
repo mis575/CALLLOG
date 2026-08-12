@@ -142,4 +142,13 @@ object SyncManager {
     suspend fun getLatestVersion(): VersionInfo? {
         return try { api.getVersionInfo().body() } catch (e: Exception) { null }
     }
+
+    suspend fun syncLeadsFromSheet(): AssignResponse {
+        return try {
+            val response = api.syncLeadsFromSheet()
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else AssignResponse(false, "Server error")
+        } catch (e: Exception) { AssignResponse(false, e.message ?: "Error") }
+    }
 }

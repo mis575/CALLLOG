@@ -1485,10 +1485,13 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
         }
         LazyColumn(Modifier.fillMaxSize()) {
             items(displayedUsers) { user ->
+                val categories by adminVM.categories.collectAsState()
                 var expandedRole by remember { mutableStateOf(false) }
                 var expandedSup  by remember { mutableStateOf(false) }
+                var expandedCategory by remember { mutableStateOf(false) }
                 var selectedRole by remember { mutableStateOf(user.role ?: "Executive") }
                 var selectedSup  by remember { mutableStateOf(user.reportsTo) }
+                var selectedCategory by remember(user.category) { mutableStateOf(user.category ?: "") }
 
                 val roleColor = when (selectedRole) {
                     "Admin"   -> Color(0xFFE53935)
@@ -1582,6 +1585,33 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
                                 }
                             }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Category: ", fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
+                            Box(Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { expandedCategory = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(
+                                        text = if (selectedCategory.isEmpty()) "None" else selectedCategory,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                DropdownMenu(expandedCategory, { expandedCategory = false }) {
+                                    DropdownMenuItem(text = { Text("None") }, onClick = { selectedCategory = ""; expandedCategory = false })
+                                    categories.forEach { cat ->
+                                        DropdownMenuItem(
+                                            text = { Text(cat) },
+                                            onClick = { selectedCategory = cat; expandedCategory = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                             OutlinedButton(
                                 onClick = { adminVM.deleteUser(user.empId, currentBrowsingId) },
@@ -1591,7 +1621,10 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) { Text("Delete", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                             Button(
-                                onClick = { adminVM.updateHierarchy(user.empId, selectedRole, selectedSup, currentBrowsingId) },
+                                onClick = { 
+                                    adminVM.updateHierarchy(user.empId, selectedRole, selectedSup, currentBrowsingId)
+                                    adminVM.updateUserCategory(user.empId, selectedCategory, currentBrowsingId)
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)

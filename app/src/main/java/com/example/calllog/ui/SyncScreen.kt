@@ -211,21 +211,39 @@ fun SyncScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
             border = BorderStroke(1.dp, Color.LightGray)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text("Total Calls", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${todaysLogs.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("Total Calls", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${todaysLogs.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("Interested", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("Follow Up", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${todaysLogs.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
+                    }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text("Interested", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                    Text("Follow-ups Done", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${todaysLogs.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("Enquiry Received", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("No Enquiry", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${todaysLogs.count { it.enquiryReceived.equals("No", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFD32F2F))
+                    }
                 }
             }
         }

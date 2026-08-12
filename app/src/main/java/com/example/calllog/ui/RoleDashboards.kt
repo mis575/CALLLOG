@@ -1567,7 +1567,13 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
                                 }
                                 DropdownMenu(expandedSup, { expandedSup = false }) {
                                     DropdownMenuItem(text = { Text("None") }, onClick = { selectedSup = ""; expandedSup = false })
-                                    allUsers.filter { it.empId != user.empId }.forEach { s ->
+                                    val supList = if (SyncManager.userRole == "Admin") {
+                                        allUsers
+                                    } else {
+                                        val self = allUsers.find { it.empId == SyncManager.userEmpId }
+                                        if (self != null) listOf(self) + displayedUsers else displayedUsers
+                                    }
+                                    supList.filter { it.empId != user.empId }.forEach { s ->
                                         DropdownMenuItem(
                                             text = { Text("${s.name} (${s.role ?: "Exec"})") },
                                             onClick = { selectedSup = s.empId; expandedSup = false }

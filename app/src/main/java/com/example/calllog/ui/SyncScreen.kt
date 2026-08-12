@@ -87,10 +87,34 @@ fun SyncScreen(
     }
 
     var selectedFilter by remember { mutableStateOf("Today") }
+    var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
     val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
     var showCustomDialog by remember { mutableStateOf(false) }
     var customLabel by remember { mutableStateOf("") }
     val df = SimpleDateFormat("dd MMM", Locale.getDefault())
+
+    val filteredLogs = remember(todaysLogs, selectedStatusFilter, searchQuery) {
+        var list = todaysLogs
+        if (selectedStatusFilter != null) {
+            list = when (selectedStatusFilter) {
+                "Interested" -> list.filter { it.status.equals("Interested", ignoreCase = true) }
+                "Follow Up" -> list.filter { it.status.equals("Follow Up", ignoreCase = true) }
+                "Enquiry" -> list.filter { it.enquiryReceived.equals("Yes", ignoreCase = true) }
+                "No Enquiry" -> list.filter { it.enquiryReceived.equals("No", ignoreCase = true) }
+                else -> list
+            }
+        }
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim()
+            list = list.filter {
+                it.number.contains(q, ignoreCase = true) ||
+                (it.companyName ?: "").contains(q, ignoreCase = true) ||
+                (it.contactName ?: "").contains(q, ignoreCase = true)
+            }
+        }
+        list
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA))) {
 
@@ -193,6 +217,7 @@ fun SyncScreen(
                             onClick = {
                                 if (filter == "Custom") { showCustomDialog = true } else {
                                     selectedFilter = filter; customLabel = ""
+                                    selectedStatusFilter = null
                                     val cal = Calendar.getInstance()
                                     cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
                                     cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
@@ -236,21 +261,77 @@ fun SyncScreen(
             }
 
             item {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search by name, company, or number...", fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = DividerColor
+                    )
+                )
+            }
+
+            item {
                 Spacer(Modifier.height(10.dp))
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(4.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatPill("Total",      "${todaysLogs.size}", PrimaryBlue, BlueLight,   Modifier.weight(1f))
-                            StatPill("Interested", "${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", GreenOk, GreenLight, Modifier.weight(1f))
-                            StatPill("Follow Up",  "${todaysLogs.count { it.status.equals("Follow Up",  ignoreCase = true) }}", OrangeOk, OrangeLight, Modifier.weight(1f))
+                            StatPill(
+                                label = "Total",
+                                value = "${todaysLogs.size}",
+                                textColor = PrimaryBlue,
+                                bgColor = BlueLight,
+                                border = if (selectedStatusFilter == null) BorderStroke(1.5.dp, PrimaryBlue) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = null }
+                            )
+                            StatPill(
+                                label = "Interested",
+                                value = "${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}",
+                                textColor = GreenOk,
+                                bgColor = GreenLight,
+                                border = if (selectedStatusFilter == "Interested") BorderStroke(1.5.dp, GreenOk) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Interested" }
+                            )
+                            StatPill(
+                                label = "Follow Up",
+                                value = "${todaysLogs.count { it.status.equals("Follow Up",  ignoreCase = true) }}",
+                                textColor = OrangeOk,
+                                bgColor = OrangeLight,
+                                border = if (selectedStatusFilter == "Follow Up") BorderStroke(1.5.dp, OrangeOk) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Follow Up" }
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                         HorizontalDivider(color = DividerColor)
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatPill("Enquiry",    "${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}", GreenOk, GreenLight, Modifier.weight(1f))
-                            StatPill("No Enquiry", "${todaysLogs.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}", RedOk,   RedLight,   Modifier.weight(1f))
+                            StatPill(
+                                label = "Enquiry",
+                                value = "${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}",
+                                textColor = GreenOk,
+                                bgColor = GreenLight,
+                                border = if (selectedStatusFilter == "Enquiry") BorderStroke(1.5.dp, GreenOk) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Enquiry" }
+                            )
+                            StatPill(
+                                label = "No Enquiry",
+                                value = "${todaysLogs.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}",
+                                textColor = RedOk,
+                                bgColor = RedLight,
+                                border = if (selectedStatusFilter == "No Enquiry") BorderStroke(1.5.dp, RedOk) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "No Enquiry" }
+                            )
                         }
                     }
                 }
@@ -266,9 +347,30 @@ fun SyncScreen(
                     }
                 }
             } else {
-                items(items = todaysLogs, key = { it.id }) { log ->
-                    CallLogItem(log = log, viewModel = viewModel, uiState = uiState)
-                    Spacer(Modifier.height(10.dp))
+                item {
+                    val filterText = when {
+                        selectedStatusFilter != null -> "Filtered by: $selectedStatusFilter"
+                        else -> "All Calls Logged"
+                    }
+                    Text(
+                        text = filterText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+                if (filteredLogs.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                            Text("No matching records found.", color = Color.Gray)
+                        }
+                    }
+                } else {
+                    items(items = filteredLogs, key = { it.id }) { log ->
+                        CallLogItem(log = log, viewModel = viewModel, uiState = uiState)
+                        Spacer(Modifier.height(10.dp))
+                    }
                 }
             }
         }
@@ -414,8 +516,21 @@ fun FollowUpInterestedSection(
 }
 
 @Composable
-private fun StatPill(label: String, value: String, textColor: Color, bgColor: Color, modifier: Modifier = Modifier) {
-    Surface(shape = RoundedCornerShape(12.dp), color = bgColor, modifier = modifier) {
+private fun StatPill(
+    label: String,
+    value: String,
+    textColor: Color,
+    bgColor: Color,
+    modifier: Modifier = Modifier,
+    border: BorderStroke? = null,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = bgColor,
+        border = border,
+        modifier = modifier.clickable { onClick() }
+    ) {
         Column(modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = textColor)
             Text(label,  fontSize = 9.sp, color = textColor.copy(alpha = 0.75f), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)

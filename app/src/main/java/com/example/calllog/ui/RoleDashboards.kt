@@ -690,12 +690,13 @@ fun DashboardMainView(
             Spacer(Modifier.height(8.dp))
 
                 var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+                var searchQuery by remember { mutableStateOf("") }
                 LaunchedEffect(reports) {
                     selectedStatusFilter = null
                 }
 
-                val filteredReports = remember(reports, selectedStatusFilter) {
-                    when (selectedStatusFilter) {
+                val filteredReports = remember(reports, selectedStatusFilter, searchQuery) {
+                    var list = when (selectedStatusFilter) {
                         "Interested" -> reports.filter { it.status.equals("Interested", ignoreCase = true) }
                         "Not Interested" -> reports.filter { it.status.equals("Not Interested", ignoreCase = true) }
                         "Prospect" -> reports.filter { it.status.equals("Prospect", ignoreCase = true) }
@@ -703,6 +704,15 @@ fun DashboardMainView(
                         "Follow Up" -> reports.filter { it.status.equals("Follow Up", ignoreCase = true) }
                         else -> reports
                     }
+                    if (searchQuery.isNotBlank()) {
+                        val q = searchQuery.trim()
+                        list = list.filter {
+                            it.number.contains(q, ignoreCase = true) ||
+                            (it.companyName ?: "").contains(q, ignoreCase = true) ||
+                            (it.contactName ?: "").contains(q, ignoreCase = true)
+                        }
+                    }
+                    list
                 }
 
                 val currentStart = startDate
@@ -733,6 +743,20 @@ fun DashboardMainView(
                 }
 
                 LazyColumn(Modifier.fillMaxSize()) {
+                    item {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search by name, company, or number...", fontSize = 13.sp) },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MgmtPrimary,
+                                unfocusedBorderColor = Color.LightGray
+                            )
+                        )
+                    }
                     item {
                         // Summary Statistics Card
                         Card(

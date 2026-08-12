@@ -333,8 +333,11 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(10000)
-            viewModel.loadTodaysLogs()
-            viewModel.loadAssignedContacts()
+            val hasUnsaved = todaysLogs.any { !it.isSaved }
+            if (!hasUnsaved) {
+                viewModel.loadTodaysLogs()
+                viewModel.loadAssignedContacts()
+            }
         }
     }
 

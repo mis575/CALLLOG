@@ -414,19 +414,79 @@ fun DashboardMainView(
     val cleanRole = (role ?: "Executive").uppercase()
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             if (cleanRole == "ADMIN") {
-                Button(onClick = { onAddUser("Manager") }, modifier = Modifier.weight(1f)) { Text("Add Manager", fontSize = 12.sp) }
+                ElevatedButton(
+                    onClick = { onAddUser("Manager") },
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("+ Manager", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             } else if (cleanRole == "MANAGER") {
-                Button(onClick = { onAddUser("TL") }, modifier = Modifier.weight(0.7f)) { Text("Add TL", fontSize = 12.sp) }
-                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(0.7f)) { Text("Add Exec", fontSize = 12.sp) }
-                Button(onClick = onTransferClick, modifier = Modifier.weight(0.8f)) { Text("Assign Leads", fontSize = 12.sp) }
+                ElevatedButton(
+                    onClick = { onAddUser("TL") },
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("+ TL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                ElevatedButton(
+                    onClick = { onAddUser("Executive") },
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("+ Executive", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                ElevatedButton(
+                    onClick = onTransferClick,
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = Color(0xFFF57C00),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("📋 Assign Leads", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             } else if (cleanRole == "TL") {
-                Button(onClick = { onAddUser("Executive") }, modifier = Modifier.weight(0.8f)) { Text("Add Executive", fontSize = 12.sp) }
-                Button(onClick = onTransferClick, modifier = Modifier.weight(0.8f)) { Text("Assign Leads", fontSize = 12.sp) }
+                ElevatedButton(
+                    onClick = { onAddUser("Executive") },
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("+ Executive", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                ElevatedButton(
+                    onClick = onTransferClick,
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = Color(0xFFF57C00),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("📋 Assign Leads", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            Button(onClick = onExportClick, modifier = if(cleanRole=="EXECUTIVE") Modifier.fillMaxWidth() else Modifier.weight(0.6f)) { 
-                Text("Export", fontSize = 12.sp) 
+            ElevatedButton(
+                onClick = onExportClick,
+                colors = ButtonDefaults.elevatedButtonColors(
+                    containerColor = Color(0xFF43A047),
+                    contentColor = Color.White
+                )
+            ) {
+                Text("📤 Export CSV", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 

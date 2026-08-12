@@ -103,6 +103,7 @@ fun SyncScreen(
             list = when (selectedStatusFilter) {
                 "Interested" -> list.filter { it.status.equals("Interested", ignoreCase = true) }
                 "Follow Up" -> list.filter { it.status.equals("Follow Up", ignoreCase = true) }
+                "Prospect" -> list.filter { it.status.equals("Prospect", ignoreCase = true) }
                 "Enquiry" -> list.filter { it.enquiryReceived.equals("Yes", ignoreCase = true) }
                 "No Enquiry" -> list.filter { it.enquiryReceived.equals("No", ignoreCase = true) }
                 else -> list
@@ -334,6 +335,15 @@ fun SyncScreen(
                                 border = if (selectedStatusFilter == "No Enquiry") BorderStroke(1.5.dp, RedOk) else null,
                                 modifier = Modifier.weight(1f),
                                 onClick = { selectedStatusFilter = "No Enquiry" }
+                            )
+                            StatPill(
+                                label = "Prospect",
+                                value = "${todaysLogs.count { it.status.equals("Prospect", ignoreCase = true) }}",
+                                textColor = PrimaryBlue,
+                                bgColor = BlueLight,
+                                border = if (selectedStatusFilter == "Prospect") BorderStroke(1.5.dp, PrimaryBlue) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Prospect" }
                             )
                         }
                     }

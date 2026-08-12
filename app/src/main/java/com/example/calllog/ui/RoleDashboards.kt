@@ -181,7 +181,7 @@ fun ManagementDashboard(role: String) {
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    if (role == "Admin" && !showUserManagement) {
+                    if ((role == "Admin" || role == "Manager" || role == "TL") && !showUserManagement) {
                         OutlinedButton(
                             onClick = { showUserManagement = true },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
@@ -1588,7 +1588,7 @@ fun AddUserDialog(
     var phone by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var selectedTL by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(if (categories.isNotEmpty()) categories.first() else "") }
+    var selectedCategory by remember { mutableStateOf("") }
     var tlExpanded by remember { mutableStateOf(false) }
     var catExpanded by remember { mutableStateOf(false) }
 
@@ -1609,9 +1609,10 @@ fun AddUserDialog(
                 Text("Category:", fontWeight = FontWeight.SemiBold)
                 Box(Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { catExpanded = true }, Modifier.fillMaxWidth()) { 
-                        Text(if(selectedCategory.isEmpty()) "Select Category" else selectedCategory) 
+                        Text(if(selectedCategory.isEmpty()) "None" else selectedCategory) 
                     }
                     DropdownMenu(catExpanded, { catExpanded = false }) {
+                        DropdownMenuItem(text = { Text("None") }, onClick = { selectedCategory = ""; catExpanded = false })
                         categories.forEach { cat ->
                             DropdownMenuItem(text = { Text(cat) }, onClick = { selectedCategory = cat; catExpanded = false })
                         }

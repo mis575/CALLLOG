@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.example.calllog.CallLogViewModel
 import com.example.calllog.UiState
 import com.example.calllog.data.AppCallTracker
+import com.example.calllog.data.AssignedContact
 import com.example.calllog.data.CallRecord
 import com.example.calllog.network.SyncManager
 import java.text.SimpleDateFormat
@@ -48,6 +50,8 @@ private val RedOk        = Color(0xFFC62828)
 private val RedLight     = Color(0xFFFFEBEE)
 private val BlueLight    = Color(0xFFE3F2FD)
 private val DividerColor = Color(0xFFE0E0E0)
+private val PurpleOk     = Color(0xFF6A1B9A)
+private val PurpleLight  = Color(0xFFF3E5F5)
 
 @Composable
 fun SyncScreen(
@@ -72,6 +76,8 @@ fun SyncScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Auto-refresh: runs silently in the background; CallLogItem uses local state
+    // so this refresh will NOT interrupt any card the user is currently editing.
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(30000)
@@ -164,6 +170,14 @@ fun SyncScreen(
             item {
                 Spacer(Modifier.height(12.dp))
                 AssignedLeadsSection(viewModel = viewModel, onLeadClick = { phoneNumber = it })
+            }
+
+            // ── Follow-Up / Interested quick-redial section ──────────────────
+            item {
+                FollowUpInterestedSection(
+                    logs = todaysLogs,
+                    onLeadClick = { number -> phoneNumber = number }
+                )
             }
 
             item {
@@ -271,6 +285,134 @@ fun SyncScreen(
     }
 }
 
+// ─── Follow-Up / Interested quick-redial section ───────────────────────────────
+@Composable
+fun FollowUpInterestedSection(
+    logs: List<CallRecord>,
+    onLeadClick: (String) -> Unit
+) {
+    val context = LocalContext.current
+
+    val followUpLeads = remember(logs) {
+        logs.filter { log ->
+            log.status.equals("Follow Up", ignoreCase = true) ||
+            log.status.equals("Interested", ignoreCase = true)
+        }.distinctBy { it.number }
+    }
+
+    if (followUpLeads.isEmpty()) return
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, OrangeOk.copy(alpha = 0.4f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(18.dp)
+                        .background(OrangeOk, RoundedCornerShape(2.dp))
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Follow Up / Interested (${followUpLeads.size})",
+                    fontWeight = FontWeight.Bold,
+                    color = OrangeOk,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Tap a card to load number into dialer",
+                fontSize = 10.sp,
+                color = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(followUpLeads) { log ->
+                    val isFollowUp = log.status.equals("Follow Up", ignoreCase = true)
+                    val cardBg     = if (isFollowUp) OrangeLight else GreenLight
+                    val cardBorder = if (isFollowUp) Color(0xFFFFB74D) else Color(0xFF81C784)
+                    val textColor  = if (isFollowUp) OrangeOk else GreenOk
+                    val statusLabel = if (isFollowUp) "Follow Up" else "Interested"
+
+                    Card(
+                        modifier = Modifier
+                            .width(170.dp)
+                            .clickable {
+                                onLeadClick(log.number)
+                                android.widget.Toast
+                                    .makeText(context, "Loaded ${log.number} to dialer", android.widget.Toast.LENGTH_SHORT)
+                                    .show()
+                            },
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            // Status badge
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = textColor.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = statusLabel,
+                                    fontSize = 9.sp,
+                                    color = textColor,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = log.number,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = textColor
+                            )
+                            if (!log.contactName.isNullOrBlank()) {
+                                Text(
+                                    text = log.contactName,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF333333),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            } else if (!log.name.isNullOrBlank()) {
+                                Text(
+                                    text = log.name,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF333333),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)),
+                                fontSize = 9.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun StatPill(label: String, value: String, textColor: Color, bgColor: Color, modifier: Modifier = Modifier) {
     Surface(shape = RoundedCornerShape(12.dp), color = bgColor, modifier = modifier) {
@@ -281,26 +423,45 @@ private fun StatPill(label: String, value: String, textColor: Color, bgColor: Co
     }
 }
 
+// ─── CallLogItem ───────────────────────────────────────────────────────────────
+// All editable fields use LOCAL mutable state (initialized once from log.* via
+// remember(log.id)) so that the periodic auto-refresh does NOT reset user input.
 @Composable
 fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) {
-    var expanded by remember { mutableStateOf(false) }
+    // ── Local editable state – initialized ONCE per unique log id ──────────────
+    // These are NOT re-initialized when the parent recomposes due to auto-refresh,
+    // because the key (log.id) stays the same. User-typed text is preserved.
+    var localContactName  by remember(log.id) { mutableStateOf(log.contactName) }
+    var localCompanyName  by remember(log.id) { mutableStateOf(log.companyName) }
+    var localAddress      by remember(log.id) { mutableStateOf(log.address) }
+    var localEmail        by remember(log.id) { mutableStateOf(log.email) }
+    var localDescription  by remember(log.id) { mutableStateOf(log.description) }
+    var localStatus       by remember(log.id) { mutableStateOf(log.status) }
+    var localFormat       by remember(log.id) { mutableStateOf(log.format) }
+    var localEnquiry      by remember(log.id) { mutableStateOf(log.enquiryReceived) }
+
+    // isSaved: sync from server only if the card transitions to saved state
+    // (i.e. only allow server to flip false→true, not true→false during editing)
     var justSaved by remember(log.id) { mutableStateOf(log.isSaved) }
+    LaunchedEffect(log.isSaved) {
+        if (log.isSaved) justSaved = true  // only accept true from server, not false
+    }
+
+    var expanded          by remember { mutableStateOf(false) }
     var showEnquiryDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(log.isSaved) { justSaved = log.isSaved }
-
-    val statusColor = when (log.status.lowercase()) {
+    val statusColor = when (localStatus.lowercase()) {
         "interested"     -> GreenOk
         "follow up"      -> OrangeOk
         "not interested" -> RedOk
-        "prospect"       -> Color(0xFF6A1B9A)
+        "prospect"       -> PurpleOk
         else             -> Color(0xFF78909C)
     }
-    val statusBg = when (log.status.lowercase()) {
+    val statusBg = when (localStatus.lowercase()) {
         "interested"     -> GreenLight
         "follow up"      -> OrangeLight
         "not interested" -> RedLight
-        "prospect"       -> Color(0xFFF3E5F5)
+        "prospect"       -> PurpleLight
         else             -> Color(0xFFECEFF1)
     }
 
@@ -317,13 +478,13 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                     MetaChip(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)))
                 }
                 Surface(shape = RoundedCornerShape(20.dp), color = statusBg) {
-                    Text(log.status, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold,
+                    Text(localStatus, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
             Text(log.number, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF1A1A2E), modifier = Modifier.padding(vertical = 6.dp))
-            if (log.enquiryReceived.isNotBlank()) {
-                val isYes = log.enquiryReceived.equals("Yes", true)
+            if (localEnquiry.isNotBlank()) {
+                val isYes = localEnquiry.equals("Yes", true)
                 Surface(shape = RoundedCornerShape(8.dp), color = if (isYes) GreenLight else RedLight) {
                     Text(if (isYes) "Enquiry Received" else "No Enquiry",
                         fontSize = 10.sp, color = if (isYes) GreenOk else RedOk, fontWeight = FontWeight.SemiBold,
@@ -332,35 +493,50 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 Spacer(Modifier.height(6.dp))
             }
             if (justSaved) {
-                if (log.contactName.isNotBlank() || log.companyName.isNotBlank() || log.description.isNotBlank()) {
+                if (localContactName.isNotBlank() || localCompanyName.isNotBlank() || localDescription.isNotBlank()) {
                     HorizontalDivider(color = DividerColor); Spacer(Modifier.height(6.dp))
-                    if (log.contactName.isNotBlank()) SavedRow("Contact", log.contactName)
-                    if (log.companyName.isNotBlank()) SavedRow("Company", log.companyName)
-                    if (log.address.isNotBlank())     SavedRow("Address", log.address)
-                    if (log.email.isNotBlank())        SavedRow("Email",   log.email)
-                    if (log.description.isNotBlank())  SavedRow("Notes",   log.description)
+                    if (localContactName.isNotBlank()) SavedRow("Contact", localContactName)
+                    if (localCompanyName.isNotBlank()) SavedRow("Company", localCompanyName)
+                    if (localAddress.isNotBlank())     SavedRow("Address", localAddress)
+                    if (localEmail.isNotBlank())        SavedRow("Email",   localEmail)
+                    if (localDescription.isNotBlank())  SavedRow("Notes",   localDescription)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text("Saved & Synced", color = GreenOk, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
             } else {
                 HorizontalDivider(color = DividerColor); Spacer(Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CrmField("Contact Person", log.contactName, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, contactName = it) }
-                    CrmField("Company Name",  log.companyName,  true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, companyName = it) }
+                    CrmField("Contact Person", localContactName, true, Modifier.weight(1f)) {
+                        localContactName = it
+                        viewModel.updateCallDetails(log.id, contactName = it)
+                    }
+                    CrmField("Company Name", localCompanyName, true, Modifier.weight(1f)) {
+                        localCompanyName = it
+                        viewModel.updateCallDetails(log.id, companyName = it)
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CrmField("Address", log.address, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, address = it) }
+                    CrmField("Address", localAddress, true, Modifier.weight(1f)) {
+                        localAddress = it
+                        viewModel.updateCallDetails(log.id, address = it)
+                    }
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.5f)),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
-                            Text(log.status, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = statusColor, fontWeight = FontWeight.SemiBold)
+                            Text(localStatus, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = statusColor, fontWeight = FontWeight.SemiBold)
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             statuses.forEach { s ->
                                 DropdownMenuItem(text = { Text(s) }, onClick = {
-                                    if (s == "Interested") showEnquiryDialog = true else viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
+                                    if (s == "Interested") {
+                                        showEnquiryDialog = true
+                                    } else {
+                                        localStatus = s
+                                        localEnquiry = ""
+                                        viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
+                                    }
                                     expanded = false
                                 })
                             }
@@ -369,26 +545,51 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 }
                 Spacer(Modifier.height(8.dp))
                 var formatExpanded by remember { mutableStateOf(false) }
-                val formats = listOf("General Catalogue Sharing (Format 0005)", "Collaboration Opportunity (Format 0003)", "Revolutionize Your Printing (Format 0002)", "Elevate Your Brand (Format 0004)")
+                val formats = listOf(
+                    "General Catalogue Sharing (Format 0005)",
+                    "Collaboration Opportunity (Format 0003)",
+                    "Revolutionize Your Printing (Format 0002)",
+                    "Elevate Your Brand (Format 0004)"
+                )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CrmField("Email", log.email, true, Modifier.weight(1f)) { viewModel.updateCallDetails(log.id, email = it) }
+                    CrmField("Email", localEmail, true, Modifier.weight(1f)) {
+                        localEmail = it
+                        viewModel.updateCallDetails(log.id, email = it)
+                    }
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedButton(onClick = { formatExpanded = true }, modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.5f)),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
-                            Text(log.format, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(localFormat, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         DropdownMenu(expanded = formatExpanded, onDismissRequest = { formatExpanded = false }) {
-                            formats.forEach { f -> DropdownMenuItem(text = { Text(f) }, onClick = { viewModel.updateCallDetails(log.id, format = f); formatExpanded = false }) }
+                            formats.forEach { f ->
+                                DropdownMenuItem(text = { Text(f) }, onClick = {
+                                    localFormat = f
+                                    viewModel.updateCallDetails(log.id, format = f)
+                                    formatExpanded = false
+                                })
+                            }
                         }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                CrmField("Description / Notes", log.description, true, Modifier.fillMaxWidth(), minLines = 2) { viewModel.updateCallDetails(log.id, description = it) }
+                CrmField("Description / Notes", localDescription, true, Modifier.fillMaxWidth(), minLines = 2) {
+                    localDescription = it
+                    viewModel.updateCallDetails(log.id, description = it)
+                }
                 Spacer(Modifier.height(12.dp))
-                Button(onClick = { viewModel.saveCallLog(log.id) }, modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue), enabled = uiState !is UiState.Loading) {
-                    if (uiState is UiState.Loading) { CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
+                Button(
+                    onClick = { viewModel.saveCallLog(log.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                    enabled = uiState !is UiState.Loading
+                ) {
+                    if (uiState is UiState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text("Save & Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
@@ -400,11 +601,21 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
             title = { Text("Enquiry Received?", fontWeight = FontWeight.Bold) },
             text  = { Text("Did you receive an enquiry for this call?") },
             confirmButton = {
-                Button(onClick = { viewModel.updateCallDetails(log.id, status = "Interested", enquiryReceived = "Yes"); showEnquiryDialog = false },
+                Button(onClick = {
+                    localStatus = "Interested"
+                    localEnquiry = "Yes"
+                    viewModel.updateCallDetails(log.id, status = "Interested", enquiryReceived = "Yes")
+                    showEnquiryDialog = false
+                },
                     colors = ButtonDefaults.buttonColors(containerColor = GreenOk), shape = RoundedCornerShape(10.dp)) { Text("Yes") }
             },
             dismissButton = {
-                Button(onClick = { viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No"); showEnquiryDialog = false },
+                Button(onClick = {
+                    localStatus = "Follow Up"
+                    localEnquiry = "No"
+                    viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No")
+                    showEnquiryDialog = false
+                },
                     colors = ButtonDefaults.buttonColors(containerColor = RedOk), shape = RoundedCornerShape(10.dp)) { Text("No") }
             }
         )

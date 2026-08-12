@@ -9,14 +9,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,6 +40,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+
+// ── Shared design tokens for Management dashboards ──────────────────────────
+private val MgmtPrimary   = Color(0xFF1565C0)
+private val MgmtDark      = Color(0xFF0D47A1)
+private val MgmtAccent    = Color(0xFF42A5F5)
+private val MgmtSurface   = Color(0xFFF5F7FA)
+private val MgmtDivider   = Color(0xFFE0E0E0)
 
 @Composable
 fun ExecutiveDashboard(viewModel: CallLogViewModel) {
@@ -130,42 +142,92 @@ fun ManagementDashboard(role: String) {
     LaunchedEffect(showUserManagement) { if(showUserManagement) adminVM.loadAllUsers() }
 
     Scaffold(
-        topBar = { 
-            TopAppBar(
-                title = { 
-                    Column {
-                        Text(text = "JJ CRM", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        val breadcrumb = if (browsingStack.size > 1) " > ${currentBrowsing.name}" else ""
-                        Text(text = "${SyncManager.userName} ($role)$breadcrumb", fontSize = 12.sp, color = Color.Gray)
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.horizontalGradient(listOf(MgmtDark, MgmtPrimary)))
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Back / cancel button
+                    if (browsingStack.size > 1 || showUserManagement) {
+                        OutlinedButton(
+                            onClick = {
+                                if (showUserManagement) showUserManagement = false
+                                else if (browsingStack.size > 1) browsingStack.removeAt(browsingStack.size - 1)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) { Text("← Back", fontSize = 11.sp) }
                     }
-                },
-                navigationIcon = {
-                    if(browsingStack.size > 1 || showUserManagement) {
-                        IconButton(onClick = { 
-                            if(showUserManagement) showUserManagement = false
-                            else if(browsingStack.size > 1) browsingStack.removeAt(browsingStack.size - 1)
-                        }) { Text("←") }
+                    Column(Modifier.weight(1f)) {
+                        Text("JJ CRM", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color.White)
+                        val breadcrumb = if (browsingStack.size > 1) " › ${currentBrowsing.name}" else ""
+                        Text(
+                            text = "${SyncManager.userName} ($role)$breadcrumb",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                },
-                actions = {
                     if (role == "Admin" && !showUserManagement) {
-                        Button(onClick = { showUserManagement = true }, modifier = Modifier.padding(end = 8.dp)) { Text("Users") }
+                        OutlinedButton(
+                            onClick = { showUserManagement = true },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) { Text("👥 Users", fontSize = 11.sp) }
                     }
-                    TextButton(onClick = { SyncManager.logout(context) }) {
-                        Text("Logout", color = Color.Red)
-                    }
+                    OutlinedButton(
+                        onClick = { SyncManager.logout(context) },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(20.dp)
+                    ) { Text("Logout", fontSize = 11.sp, color = Color(0xFFFF8A80)) }
                 }
-            ) 
+            }
         }
     ) { p ->
-        Column(Modifier.padding(p).fillMaxSize().background(Color(0xFFFAFAFA))) {
+        Column(Modifier.padding(p).fillMaxSize().background(MgmtSurface)) {
             if (showUserManagement) {
                 UserManagementView(adminVM, allUsers, currentBrowsingId)
             } else {
-                TabRow(selectedTabIndex = currentTab, containerColor = Color.White) {
-                    Tab(selected = currentTab == 0, onClick = { currentTab = 0 }, text = { Text("Discovery") })
-                    Tab(selected = currentTab == 1, onClick = { currentTab = 1 }, text = { Text("My Calls") })
-                    Tab(selected = currentTab == 2, onClick = { currentTab = 2 }, text = { Text("Team Leads") })
+                TabRow(
+                    selectedTabIndex = currentTab,
+                    containerColor = Color.White,
+                    contentColor = MgmtPrimary,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[currentTab]),
+                            height = 3.dp,
+                            color = MgmtPrimary
+                        )
+                    }
+                ) {
+                    Tab(
+                        selected = currentTab == 0, onClick = { currentTab = 0 },
+                        text = { Text("Discovery", fontWeight = if (currentTab == 0) FontWeight.Bold else FontWeight.Normal, fontSize = 13.sp) }
+                    )
+                    Tab(
+                        selected = currentTab == 1, onClick = { currentTab = 1 },
+                        text = { Text("My Calls", fontWeight = if (currentTab == 1) FontWeight.Bold else FontWeight.Normal, fontSize = 13.sp) }
+                    )
+                    Tab(
+                        selected = currentTab == 2, onClick = { currentTab = 2 },
+                        text = { Text("Team Leads", fontWeight = if (currentTab == 2) FontWeight.Bold else FontWeight.Normal, fontSize = 13.sp) }
+                    )
                 }
 
                 Column(Modifier.padding(16.dp)) {
@@ -307,6 +369,11 @@ fun PersonalCallingView(viewModel: CallLogViewModel) {
             onLeadClick = { phoneNumber = it }
         )
 
+        FollowUpInterestedSection(
+            logs = todaysLogs,
+            onLeadClick = { phoneNumber = it }
+        )
+
         Spacer(Modifier.height(16.dp))
         DateFilterRow(onFilterChange = { start, end ->
             viewModel.setDateRange(start, end)
@@ -416,97 +483,100 @@ fun DashboardMainView(
     val endDate by adminVM.endDate.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // ── Action Buttons Bar ─────────────────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            shape = RoundedCornerShape(0.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(2.dp)
         ) {
-            if (cleanRole == "ADMIN") {
-                ElevatedButton(
-                    onClick = { onAddUser("Manager") },
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("+ Manager", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            } else if (cleanRole == "MANAGER") {
-                ElevatedButton(
-                    onClick = { onAddUser("TL") },
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("+ TL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-                ElevatedButton(
-                    onClick = { onAddUser("Executive") },
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("+ Executive", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-                ElevatedButton(
-                    onClick = onTransferClick,
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = Color(0xFFF57C00),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("📋 Assign Leads", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            } else if (cleanRole == "TL") {
-                ElevatedButton(
-                    onClick = { onAddUser("Executive") },
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("+ Executive", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-                ElevatedButton(
-                    onClick = onTransferClick,
-                    colors = ButtonDefaults.elevatedButtonColors(
-                        containerColor = Color(0xFFF57C00),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("📋 Assign Leads", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            ElevatedButton(
-                onClick = onExportClick,
-                colors = ButtonDefaults.elevatedButtonColors(
-                    containerColor = Color(0xFF43A047),
-                    contentColor = Color.White
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("📤 Export CSV", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (cleanRole == "ADMIN") {
+                    Button(
+                        onClick = { onAddUser("Manager") },
+                        colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text("+ Manager", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (cleanRole == "MANAGER") {
+                    Button(
+                        onClick = { onAddUser("TL") },
+                        colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("+ TL", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    Button(
+                        onClick = { onAddUser("Executive") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5E35B1)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("+ Executive", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    Button(
+                        onClick = onTransferClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("📋 Assign Leads", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                } else if (cleanRole == "TL") {
+                    Button(
+                        onClick = { onAddUser("Executive") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5E35B1)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("+ Executive", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    Button(
+                        onClick = onTransferClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("📋 Assign Leads", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                }
+                Button(
+                    onClick = onExportClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) { Text("📤 Export CSV", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text("Team Discovery", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.width(4.dp).height(18.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
+            Spacer(Modifier.width(8.dp))
+            Text("Team Discovery", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1A1A2E))
+            Spacer(Modifier.weight(1f))
+            Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFE3F2FD)) {
+                Text("${members.size} members", fontSize = 10.sp, color = MgmtPrimary, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         
         Box(Modifier.weight(0.4f)) {
-            if (members.isEmpty()) Text("No subordinates found.", Modifier.align(Alignment.Center), color = Color.Gray)
-            else {
+            if (members.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No subordinates found.", color = Color.Gray, fontSize = 13.sp)
+                }
+            } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(members) { m ->
-                        val displayRole = if(m.role.isNullOrEmpty()) "Executive" else m.role
+                        val displayRole = if (m.role.isNullOrEmpty()) "Executive" else m.role
                         val roleColor = when (displayRole) {
-                            "Admin" -> Color(0xFFE53935)      // Red
-                            "Manager" -> Color(0xFF1E88E5)    // Blue
-                            "TL" -> Color(0xFF8E24AA)         // Purple
-                            else -> Color(0xFF43A047)         // Green (Executive)
+                            "Admin"   -> Color(0xFFE53935)
+                            "Manager" -> Color(0xFF1E88E5)
+                            "TL"      -> Color(0xFF8E24AA)
+                            else      -> Color(0xFF2E7D32)
                         }
+                        val isSelected = selectedEmpId == m.empId
 
                         Card(
                             modifier = Modifier
@@ -514,13 +584,14 @@ fun DashboardMainView(
                                 .padding(vertical = 4.dp)
                                 .clickable { onSelectMember(m) },
                             colors = CardDefaults.cardColors(
-                                containerColor = if (selectedEmpId == m.empId) Color(0xFFE3F2FD) else Color.White
+                                containerColor = if (isSelected) Color(0xFFE3F2FD) else Color.White
                             ),
                             border = BorderStroke(
-                                1.dp,
-                                if (selectedEmpId == m.empId) Color(0xFF90CAF9) else Color(0xFFE0E0E0)
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) MgmtPrimary.copy(alpha = 0.6f) else MgmtDivider
                             ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -529,16 +600,16 @@ fun DashboardMainView(
                                 // Avatar circle with initial letter
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .background(roleColor.copy(alpha = 0.1f), shape = androidx.compose.foundation.shape.CircleShape)
-                                        .border(1.dp, roleColor.copy(alpha = 0.3f), shape = androidx.compose.foundation.shape.CircleShape),
+                                        .size(42.dp)
+                                        .background(roleColor.copy(alpha = 0.12f), CircleShape)
+                                        .border(1.5.dp, roleColor.copy(alpha = 0.35f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = m.name.take(1).uppercase(),
                                         color = roleColor,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp
                                     )
                                 }
 
@@ -549,8 +620,11 @@ fun DashboardMainView(
                                         text = m.name,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF212121)
+                                        color = Color(0xFF1A1A2E),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
+                                    Spacer(Modifier.height(3.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = "ID: ${m.empId}",
@@ -558,15 +632,14 @@ fun DashboardMainView(
                                             color = Color.Gray
                                         )
                                         Spacer(Modifier.width(8.dp))
-                                        // Badge
                                         Surface(
-                                            shape = MaterialTheme.shapes.extraSmall,
+                                            shape = RoundedCornerShape(4.dp),
                                             color = roleColor.copy(alpha = 0.12f),
                                             border = BorderStroke(1.dp, roleColor.copy(alpha = 0.4f))
                                         ) {
                                             Text(
                                                 text = displayRole,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 color = roleColor,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 9.sp
@@ -576,14 +649,22 @@ fun DashboardMainView(
                                 }
 
                                 if (displayRole == "Manager" || displayRole == "TL") {
-                                    IconButton(onClick = { onTeamReportClick(m) }) {
-                                        Text("📊", fontSize = 16.sp)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFE3F2FD),
+                                        modifier = Modifier.clickable { onTeamReportClick(m) }.padding(end = 4.dp)
+                                    ) {
+                                        Text("📊", fontSize = 18.sp, modifier = Modifier.padding(6.dp))
                                     }
                                 }
 
                                 if (SyncManager.userRole == "Admin" || SyncManager.userRole == "Manager") {
-                                    IconButton(onClick = { adminVM.deleteUser(m.empId, currentBrowsingId) }) {
-                                        Text("🗑", color = Color.Red, fontSize = 12.sp)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFFEBEE),
+                                        modifier = Modifier.clickable { adminVM.deleteUser(m.empId, currentBrowsingId) }
+                                    ) {
+                                        Text("🗑", color = Color(0xFFC62828), fontSize = 14.sp, modifier = Modifier.padding(6.dp))
                                     }
                                 }
                             }
@@ -593,18 +674,20 @@ fun DashboardMainView(
             }
         }
 
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+        HorizontalDivider(color = MgmtDivider, modifier = Modifier.padding(vertical = 10.dp))
 
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+        // ── Reports section ──────────────────────────────────────────────
+        if (uiState is UiState.Loading && reports.isEmpty()) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        } else {
+            val reportTitle = if (selectedEmpId.isEmpty()) "Team/Overall Report" else "Individual Report"
+            Row(modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.width(4.dp).height(18.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
+                Spacer(Modifier.width(8.dp))
+                Text(reportTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1A1A2E))
+            }
 
-        if (true) { // Always show reports/summary section
-            if (uiState is UiState.Loading && reports.isEmpty()) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-            } else {
-                val reportTitle = if (selectedEmpId.isEmpty()) "Team/Overall Report" else "Individual Report"
-                Text(reportTitle, fontWeight = FontWeight.Bold)
-
-                Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
                 var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
                 LaunchedEffect(reports) {
@@ -942,7 +1025,6 @@ fun DashboardMainView(
                     }
                 }
             }
-        }
     }
 }
 
@@ -1098,42 +1180,53 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
+        // Header row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Leads Management", fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.width(4.dp).height(18.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
+                Spacer(Modifier.width(8.dp))
+                Text("Leads Management", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1A1A2E))
+            }
             val context = LocalContext.current
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { adminVM.syncLeadsFromSheet(context) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text("Sync Sheet Leads", fontSize = 11.sp)
+                    Text("🔄 Sync Sheet", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 if (selectedLeads.isNotEmpty()) {
                     Button(
                         onClick = { showTransferDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF57C00)),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("Transfer (${selectedLeads.size})", fontSize = 11.sp)
+                        Text("Transfer (${selectedLeads.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
         if (leads.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No leads found in this branch.", color = Color.Gray)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📋", fontSize = 32.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("No leads found in this branch.", color = Color.Gray, fontSize = 13.sp)
+                }
             }
         } else {
             LazyColumn(Modifier.weight(1f)) {
                 items(leads) { lead ->
                     val isSelected = selectedLeads.contains(lead.number)
+                    val isPending  = lead.status == "Pending"
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1145,23 +1238,61 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) Color(0xFFFFF3E0) else Color.White
                         ),
-                        border = BorderStroke(1.dp, if (isSelected) Color(0xFFF57C00) else Color(0xFFE0E0E0))
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) Color(0xFFF57C00) else MgmtDivider
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp)
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = isSelected, onCheckedChange = { checked ->
-                                if (checked == true) selectedLeads.add(lead.number)
-                                else selectedLeads.remove(lead.number)
-                            })
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (checked) selectedLeads.add(lead.number)
+                                    else selectedLeads.remove(lead.number)
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFFF57C00))
+                            )
+                            Spacer(Modifier.width(4.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(lead.number, fontWeight = FontWeight.Bold)
-                                Text("With: ${lead.assignedToName} (${lead.assignedTo})", fontSize = 11.sp, color = Color.Gray)
-                                Text("By: ${lead.assignedByName}", fontSize = 9.sp, color = Color.LightGray)
+                                Text(
+                                    text = lead.number,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF1A1A2E)
+                                )
+                                if (!lead.name.isNullOrBlank()) {
+                                    Text(
+                                        text = lead.name,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF333333)
+                                    )
+                                }
+                                Text(
+                                    text = "With: ${lead.assignedToName} (${lead.assignedTo})",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = "By: ${lead.assignedByName}",
+                                    fontSize = 9.sp,
+                                    color = Color.LightGray
+                                )
                             }
                             Surface(
-                                shape = MaterialTheme.shapes.extraSmall,
-                                color = if (lead.status == "Pending") Color(0xFFFFF3E0) else Color(0xFFE8F5E9)
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isPending) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
+                                border = BorderStroke(1.dp, if (isPending) Color(0xFFFFB74D) else Color(0xFF81C784))
                             ) {
-                                Text(lead.status, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp)
+                                Text(
+                                    text = lead.status,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPending) Color(0xFFF57C00) else Color(0xFF2E7D32)
+                                )
                             }
                         }
                     }
@@ -1228,26 +1359,80 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
 
 @Composable
 fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, currentBrowsingId: String) {
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Global User Management", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Spacer(Modifier.height(16.dp))
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+            Box(modifier = Modifier.width(4.dp).height(22.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
+            Spacer(Modifier.width(10.dp))
+            Text("Global User Management", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A2E))
+            Spacer(Modifier.weight(1f))
+            Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFE3F2FD)) {
+                Text("${allUsers.size} users", fontSize = 10.sp, color = MgmtPrimary,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+            }
+        }
         LazyColumn(Modifier.fillMaxSize()) {
             items(allUsers) { user ->
                 var expandedRole by remember { mutableStateOf(false) }
-                var expandedSup by remember { mutableStateOf(false) }
+                var expandedSup  by remember { mutableStateOf(false) }
                 var selectedRole by remember { mutableStateOf(user.role ?: "Executive") }
-                var selectedSup by remember { mutableStateOf(user.reportsTo) }
+                var selectedSup  by remember { mutableStateOf(user.reportsTo) }
+
+                val roleColor = when (selectedRole) {
+                    "Admin"   -> Color(0xFFE53935)
+                    "Manager" -> Color(0xFF1E88E5)
+                    "TL"      -> Color(0xFF8E24AA)
+                    else      -> Color(0xFF2E7D32)
+                }
 
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color.LightGray)
+                    border = BorderStroke(1.dp, MgmtDivider),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("${user.name} (${user.empId})", fontWeight = FontWeight.Bold)
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
+                            Box(
+                                modifier = Modifier.size(38.dp)
+                                    .background(roleColor.copy(alpha = 0.12f), CircleShape)
+                                    .border(1.5.dp, roleColor.copy(alpha = 0.35f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(user.name.take(1).uppercase(), color = roleColor,
+                                    fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = user.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF1A1A2E),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text("ID: ${user.empId}", fontSize = 11.sp, color = Color.Gray)
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = roleColor.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, roleColor.copy(alpha = 0.4f))
+                            ) {
+                                Text(selectedRole, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    color = roleColor, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                            }
+                        }
+
+                        HorizontalDivider(color = MgmtDivider, modifier = Modifier.padding(bottom = 10.dp))
+
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(Modifier.weight(1f)) {
-                                OutlinedButton(onClick = { expandedRole = true }, Modifier.fillMaxWidth()) { Text(selectedRole, fontSize = 12.sp) }
+                                OutlinedButton(
+                                    onClick = { expandedRole = true },
+                                    Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) { Text(selectedRole, fontSize = 12.sp, color = roleColor, fontWeight = FontWeight.SemiBold) }
                                 DropdownMenu(expandedRole, { expandedRole = false }) {
                                     listOf("Executive", "TL", "Manager", "Admin").forEach { r ->
                                         DropdownMenuItem(text = { Text(r) }, onClick = { selectedRole = r; expandedRole = false })
@@ -1255,18 +1440,43 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
                                 }
                             }
                             Box(Modifier.weight(1f)) {
-                                OutlinedButton(onClick = { expandedSup = true }, Modifier.fillMaxWidth()) { Text(if(selectedSup.isEmpty()) "Superior" else selectedSup, fontSize = 12.sp) }
+                                OutlinedButton(
+                                    onClick = { expandedSup = true },
+                                    Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(
+                                        if (selectedSup.isEmpty()) "No Superior" else selectedSup,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                                 DropdownMenu(expandedSup, { expandedSup = false }) {
                                     DropdownMenuItem(text = { Text("None") }, onClick = { selectedSup = ""; expandedSup = false })
                                     allUsers.filter { it.empId != user.empId }.forEach { s ->
-                                        DropdownMenuItem(text = { Text("${s.name} (${s.role})") }, onClick = { selectedSup = s.empId; expandedSup = false })
+                                        DropdownMenuItem(
+                                            text = { Text("${s.name} (${s.role ?: "Exec"})") },
+                                            onClick = { selectedSup = s.empId; expandedSup = false }
+                                        )
                                     }
                                 }
                             }
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { adminVM.deleteUser(user.empId, currentBrowsingId) }) { Text("Delete", color = Color.Red) }
-                            Button(onClick = { adminVM.updateHierarchy(user.empId, selectedRole, selectedSup, currentBrowsingId) }) { Text("Save") }
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                            OutlinedButton(
+                                onClick = { adminVM.deleteUser(user.empId, currentBrowsingId) },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC62828)),
+                                border = BorderStroke(1.dp, Color(0xFFC62828).copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) { Text("Delete", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+                            Button(
+                                onClick = { adminVM.updateHierarchy(user.empId, selectedRole, selectedSup, currentBrowsingId) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) { Text("Save", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
                         }
                     }
                 }

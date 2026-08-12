@@ -56,7 +56,7 @@ fun SyncScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(10000)
+            kotlinx.coroutines.delay(30000)
             viewModel.loadTodaysLogs()
             viewModel.loadAssignedContacts()
         }
@@ -430,8 +430,8 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = { 
-                        viewModel.saveCallLog(log)
-                        // Note: viewModel.saveCallLog will call loadTodaysLogs which updates log.isSaved
+                        viewModel.saveCallLog(log.id)
+                        // viewModel.saveCallLog looks up latest log by ID to avoid stale closure bug
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.small,

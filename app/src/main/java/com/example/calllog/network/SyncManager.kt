@@ -11,6 +11,8 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
+import java.util.concurrent.TimeUnit
+
 object SyncManager {
     private const val BACKEND_BASE_URL = "https://call-log-qaq7.onrender.com/"
     private const val PREFS_NAME = "CRM_Prefs"
@@ -21,9 +23,12 @@ object SyncManager {
     var userName: String = ""
     var userRole: String = "Executive"
     var userEmpId: String = ""
-
+ 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val client = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
         .build()
 

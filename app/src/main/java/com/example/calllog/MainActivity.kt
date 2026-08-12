@@ -74,23 +74,30 @@ class MainActivity : ComponentActivity() {
                         )
                     )
                     
-                    // Startup version check
-                    try {
-                        val latest = SyncManager.getLatestVersion()
-                        if (latest != null) {
-                            val packageInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
-                            val currentVersion = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                packageInfo.longVersionCode
-                            } else {
-                                @Suppress("DEPRECATION")
-                                packageInfo.versionCode.toLong()
+                    // Startup version check (retries every 15s until successful to handle sleeping servers)
+                    var checkSucceeded = false
+                    while (!checkSucceeded) {
+                        try {
+                            val latest = SyncManager.getLatestVersion()
+                            if (latest != null) {
+                                val packageInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
+                                val currentVersion = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                    packageInfo.longVersionCode
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    packageInfo.versionCode.toLong()
+                                }
+                                if (latest.latestVersionCode > currentVersion) {
+                                    updateInfo = latest
+                                }
+                                checkSucceeded = true
                             }
-                            if (latest.latestVersionCode > currentVersion) {
-                                updateInfo = latest
-                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Version check failed: ${e.message}", e)
                         }
-                    } catch (e: Exception) {
-                        android.util.Log.e("MainActivity", "Version check failed: ${e.message}", e)
+                        if (!checkSucceeded) {
+                            kotlinx.coroutines.delay(15000)
+                        }
                     }
                 }
 

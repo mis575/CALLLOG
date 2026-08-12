@@ -45,6 +45,9 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
 
     fun loadTodaysLogs() {
         viewModelScope.launch(Dispatchers.IO) {
+            // 0. Capture current UI state to preserve unsaved edits
+            val currentUIStateMap = _todaysLogs.value.associateBy { it.id }
+
             // 1. Get system call logs from device
             val systemLogs = repository.getFilteredCallLogs(SyncManager.userEmpId, _startDate.value, _endDate.value)
 
@@ -66,6 +69,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             // Process all system logs (and update with DB state if saved)
             systemLogs.forEach { systemLog ->
                 val dbLog = dbMap[systemLog.id]
+                val currentLocalLog = currentUIStateMap[systemLog.id]
+
                 if (dbLog != null) {
                     // Update system log with database values
                     mergedLogsList.add(
@@ -80,6 +85,21 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                             isSaved = dbLog.isSaved,
                             syncedBy = dbLog.syncedBy,
                             enquiryReceived = dbLog.enquiryReceived
+                        )
+                    )
+                } else if (currentLocalLog != null && !currentLocalLog.isSaved) {
+                    // PRESERVE local edits if not saved in DB yet
+                    mergedLogsList.add(
+                        systemLog.copy(
+                            isSaved = false,
+                            description = currentLocalLog.description,
+                            contactName = currentLocalLog.contactName,
+                            companyName = currentLocalLog.companyName,
+                            address = currentLocalLog.address,
+                            status = currentLocalLog.status,
+                            email = currentLocalLog.email,
+                            format = currentLocalLog.format,
+                            enquiryReceived = currentLocalLog.enquiryReceived
                         )
                     )
                 } else {
@@ -143,11 +163,13 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    fun saveCallLog(log: CallRecord) {
+    fun saveCallLog(logId: String) {
+        // Always look up the LATEST version of the log from state — never use the stale composable parameter
+        val latestLog = _todaysLogs.value.find { it.id == logId } ?: return
         _uiState.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val success = SyncManager.syncLogs(listOf(log.copy(isSaved = true)))
+                val success = SyncManager.syncLogs(listOf(latestLog.copy(isSaved = true)))
                 if (success) {
                     _uiState.value = UiState.Success("Saved and synced!")
                     loadTodaysLogs() // Refresh to lock UI

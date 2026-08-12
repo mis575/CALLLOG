@@ -1412,16 +1412,40 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
     }
 }
 
+fun getDescendants(userEmpId: String, allUsers: List<TeamMember>): List<TeamMember> {
+    val result = mutableListOf<TeamMember>()
+    val queue = java.util.LinkedList<String>()
+    queue.add(userEmpId)
+    while (queue.isNotEmpty()) {
+        val currentId = queue.poll()
+        val children = allUsers.filter { it.reportsTo == currentId }
+        for (child in children) {
+            if (!result.any { it.empId == child.empId }) {
+                result.add(child)
+                queue.add(child.empId)
+            }
+        }
+    }
+    return result
+}
+
 @Composable
 fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, currentBrowsingId: String) {
+    val displayedUsers = remember(allUsers) {
+        if (SyncManager.userRole == "Admin") {
+            allUsers
+        } else {
+            getDescendants(SyncManager.userEmpId, allUsers)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
             Box(modifier = Modifier.width(4.dp).height(22.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
             Spacer(Modifier.width(10.dp))
-            Text("Global User Management", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A2E))
+            Text(if (SyncManager.userRole == "Admin") "Global User Management" else "My Team Management", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1A1A2E))
             Spacer(Modifier.weight(1f))
             Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFE3F2FD)) {
-                Text("${allUsers.size} users", fontSize = 10.sp, color = MgmtPrimary,
+                Text("${displayedUsers.size} users", fontSize = 10.sp, color = MgmtPrimary,
                     fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
             }
         }
@@ -1460,7 +1484,7 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
             }
         }
         LazyColumn(Modifier.fillMaxSize()) {
-            items(allUsers) { user ->
+            items(displayedUsers) { user ->
                 var expandedRole by remember { mutableStateOf(false) }
                 var expandedSup  by remember { mutableStateOf(false) }
                 var selectedRole by remember { mutableStateOf(user.role ?: "Executive") }

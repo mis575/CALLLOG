@@ -18,7 +18,8 @@ data class CallRecord(
     val email: String = "",
     val format: String = "Select Format",
     val isSaved: Boolean = false,
-    val syncedBy: String? = null
+    val syncedBy: String? = null,
+    val enquiryReceived: String = ""
 )
 
 @Serializable

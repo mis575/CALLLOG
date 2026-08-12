@@ -78,7 +78,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                             email = dbLog.email,
                             format = dbLog.format,
                             isSaved = dbLog.isSaved,
-                            syncedBy = dbLog.syncedBy
+                            syncedBy = dbLog.syncedBy,
+                            enquiryReceived = dbLog.enquiryReceived
                         )
                     )
                 } else {
@@ -93,7 +94,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                             address = "",
                             status = "Select Status",
                             email = "",
-                            format = "Select Format"
+                            format = "Select Format",
+                            enquiryReceived = ""
                         )
                     )
                 }
@@ -122,7 +124,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         address: String? = null,
         status: String? = null,
         email: String? = null,
-        format: String? = null
+        format: String? = null,
+        enquiryReceived: String? = null
     ) {
         _todaysLogs.value = _todaysLogs.value.map { log ->
             if (log.id == callId) {
@@ -133,7 +136,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     address = address ?: log.address,
                     status = status ?: log.status,
                     email = email ?: log.email,
-                    format = format ?: log.format
+                    format = format ?: log.format,
+                    enquiryReceived = enquiryReceived ?: log.enquiryReceived
                 )
             } else log
         }

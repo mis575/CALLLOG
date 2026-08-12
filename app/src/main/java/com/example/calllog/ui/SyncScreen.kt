@@ -203,7 +203,34 @@ fun SyncScreen(
 
         // --- TODAY CALL LOG ---
         Text(text = "Today Call Log", style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Executive Tracking Stats Card
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            border = BorderStroke(1.dp, Color.LightGray)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text("Total Calls", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${todaysLogs.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text("Interested", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text("Follow-ups Done", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${todaysLogs.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
         
         Box(modifier = Modifier.weight(1f)) {
             if (todaysLogs.isEmpty()) {
@@ -231,13 +258,14 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
     var expanded by remember { mutableStateOf(false) }
     // Local state to track if we just saved this specific item to hide the button immediately
     var justSaved by remember(log.id) { mutableStateOf(log.isSaved) }
+    var showEnquiryDialog by remember { mutableStateOf(false) }
     
     // Update local state if the log object itself changes (e.g. after a full reload)
     LaunchedEffect(log.isSaved) {
         justSaved = log.isSaved
     }
 
-    val statuses = listOf("Interested", "Not Interested", "Prospect")
+    val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up")
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -245,7 +273,6 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
         border = BorderStroke(1.dp, Color.LightGray)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // ... (rest of the card content)
             // Row 1: Duration | User Name | Time
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Surface(modifier = Modifier.border(1.dp, Color.LightGray, MaterialTheme.shapes.small), shape = MaterialTheme.shapes.small) {
@@ -307,7 +334,11 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                             DropdownMenuItem(
                                 text = { Text(s) },
                                 onClick = { 
-                                    viewModel.updateCallDetails(log.id, status = s)
+                                    if (s == "Interested") {
+                                        showEnquiryDialog = true
+                                    } else {
+                                        viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
+                                    }
                                     expanded = false 
                                 }
                             )
@@ -399,6 +430,30 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 Text("✓ Saved", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
+    }
+
+    if (showEnquiryDialog) {
+        AlertDialog(
+            onDismissRequest = { showEnquiryDialog = false },
+            title = { Text("Enquiry Received?") },
+            text = { Text("Did you receive an enquiry for this call?") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.updateCallDetails(log.id, status = "Interested", enquiryReceived = "Yes")
+                    showEnquiryDialog = false
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No")
+                    showEnquiryDialog = false
+                }) {
+                    Text("No")
+                }
+            }
+        )
     }
 }
 

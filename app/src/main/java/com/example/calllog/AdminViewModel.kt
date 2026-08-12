@@ -144,10 +144,10 @@ class AdminViewModel : ViewModel() {
 
     fun exportToCsv(context: Context): String? {
         if (_reports.value.isEmpty()) return null
-        val csv = StringBuilder("ID,User,Number,Caller,Type,Date,Duration,Notes,Contact,Company,Address,Status\n")
+        val csv = StringBuilder("ID,User,Number,Caller,Type,Date,Duration,Notes,Contact,Company,Address,Status,Enquiry Received\n")
         val df = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         _reports.value.forEach { l ->
-            csv.append("${l.id},${l.syncedBy ?: "Unknown"},${l.number},${l.name ?: "Unknown"},${l.type},${df.format(Date(l.date))},${l.duration}s,${l.description.replace(",", " ")},${l.contactName.replace(",", " ")},${l.companyName.replace(",", " ")},${l.address.replace(",", " ")},${l.status}\n")
+            csv.append("${l.id},${l.syncedBy ?: "Unknown"},${l.number},${l.name ?: "Unknown"},${l.type},${df.format(Date(l.date))},${l.duration}s,${l.description.replace(",", " ")},${l.contactName.replace(",", " ")},${l.companyName.replace(",", " ")},${l.address.replace(",", " ")},${l.status},${l.enquiryReceived}\n")
         }
 
         val filename = "Report_${System.currentTimeMillis()}.csv"

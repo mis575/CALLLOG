@@ -533,6 +533,8 @@ fun DashboardMainView(
 
         HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
+        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
         if (true) { // Always show reports/summary section
             if (uiState is UiState.Loading && reports.isEmpty()) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -540,49 +542,321 @@ fun DashboardMainView(
                 val reportTitle = if (selectedEmpId.isEmpty()) "Team/Overall Report" else "Individual Report"
                 Text(reportTitle, fontWeight = FontWeight.Bold)
 
-                // Summary Statistics Card
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                    border = BorderStroke(1.dp, Color.LightGray)
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("Report Summary", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.DarkGray)
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
-                                Text("${reports.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Interested", fontSize = 10.sp, color = Color.Gray)
-                                Text("${reports.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Not Interested", fontSize = 10.sp, color = Color.Gray)
-                                Text("${reports.count { it.status.equals("Not Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE53935))
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Prospect", fontSize = 10.sp, color = Color.Gray)
-                                Text("${reports.count { it.status.equals("Prospect", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
-                            }
+                Spacer(Modifier.height(8.dp))
+
+                var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+                LaunchedEffect(reports) {
+                    selectedStatusFilter = null
+                }
+
+                val filteredReports = remember(reports, selectedStatusFilter) {
+                    when (selectedStatusFilter) {
+                        "Interested" -> reports.filter { it.status.equals("Interested", ignoreCase = true) }
+                        "Not Interested" -> reports.filter { it.status.equals("Not Interested", ignoreCase = true) }
+                        "Prospect" -> reports.filter { it.status.equals("Prospect", ignoreCase = true) }
+                        "Missed Call" -> reports.filter { it.duration == 0L }
+                        "Follow Up" -> reports.filter { it.status.equals("Follow Up", ignoreCase = true) }
+                        else -> reports
+                    }
+                }
+
+                val plannedValues = remember {
+                    mutableStateMapOf<Int, Int>().apply {
+                        for (h in 9..18) {
+                            this[h] = 10
                         }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
-
-                Box(Modifier.weight(0.6f)) {
-                    if (reports.isEmpty()) {
-                        Text("No records found.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
-                    } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(reports) { r ->
-                                ReadOnlyCallLogItem(log = r)
+                LazyColumn(Modifier.fillMaxSize()) {
+                    item {
+                        // Summary Statistics Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                            border = BorderStroke(1.dp, Color.LightGray)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Report Summary (Click to Filter Logs)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.DarkGray)
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = null }
+                                            .border(
+                                                width = if (selectedStatusFilter == null) 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == null) Color.Black else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "Interested" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "Interested") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Interested") Color(0xFF43A047) else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Interested", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "Not Interested" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "Not Interested") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Not Interested") Color(0xFFE53935) else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Not Interested", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.count { it.status.equals("Not Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE53935))
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "Prospect" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "Prospect") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Prospect") Color(0xFF1E88E5) else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Prospect", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.count { it.status.equals("Prospect", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "Missed Call" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "Missed Call") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Missed Call") Color.DarkGray else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Missed Call", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.count { it.duration == 0L }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "Follow Up" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "Follow Up") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Follow Up") Color(0xFFFF9800) else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("Follow Up", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${reports.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
+                                    }
+                                }
                             }
+                        }
+                    }
+
+                    item {
+                        // Hourly Performance Table
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            border = BorderStroke(1.dp, Color.LightGray),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Hourly Performance Table", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.DarkGray)
+                                Spacer(Modifier.height(8.dp))
+                                
+                                // Table Header
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().background(Color(0xFFEEEEEE)).padding(vertical = 6.dp, horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Hour Slot", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("Planned", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("Actual", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("Status", modifier = Modifier.weight(1.3f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                                }
+                                
+                                // Table Rows
+                                var totalPlanned = 0
+                                var totalActual = 0
+                                
+                                val slots = listOf(
+                                    9 to "09:00 - 10:00",
+                                    10 to "10:00 - 11:00",
+                                    11 to "11:00 - 12:00",
+                                    12 to "12:00 - 13:00",
+                                    13 to "13:00 - 14:00",
+                                    14 to "14:00 - 15:00",
+                                    15 to "15:00 - 16:00",
+                                    16 to "16:00 - 17:00",
+                                    17 to "17:00 - 18:00",
+                                    18 to "18:00 - 19:00"
+                                )
+                                
+                                slots.forEach { (hourStart, label) ->
+                                    val actual = reports.count { log ->
+                                        val cal = Calendar.getInstance().apply { timeInMillis = log.date }
+                                        val hour = cal.get(Calendar.HOUR_OF_DAY)
+                                        hour == hourStart
+                                    }
+                                    val planned = plannedValues[hourStart] ?: 0
+                                    
+                                    totalActual += actual
+                                    totalPlanned += planned
+                                    
+                                    val ratio = if (planned > 0) (actual.toFloat() / planned.toFloat()) else 0f
+                                    val pct = ratio * 100
+                                    val status = when {
+                                        planned == 0 && actual == 0 -> "-"
+                                        planned == 0 && actual > 0 -> "Excellent"
+                                        pct >= 90f -> "Excellent"
+                                        pct >= 80f -> "Better"
+                                        pct >= 70f -> "Good"
+                                        pct >= 50f -> "Average"
+                                        else -> "Poor"
+                                    }
+                                    
+                                    val statusColor = when (status) {
+                                        "Excellent" -> Color(0xFF2E7D32)
+                                        "Better" -> Color(0xFF4CAF50)
+                                        "Good" -> Color(0xFF2196F3)
+                                        "Average" -> Color(0xFFFF9800)
+                                        "Poor" -> Color(0xFFD32F2F)
+                                        else -> Color.Gray
+                                    }
+                                    
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(label, modifier = Modifier.weight(1.5f), fontSize = 11.sp)
+                                        
+                                        Box(modifier = Modifier.weight(1.2f), contentAlignment = Alignment.Center) {
+                                            var textValue by remember(planned) { mutableStateOf(planned.toString()) }
+                                            androidx.compose.foundation.text.BasicTextField(
+                                                value = textValue,
+                                                onValueChange = { newValue ->
+                                                    textValue = newValue.filter { it.isDigit() }
+                                                    val newInt = textValue.toIntOrNull() ?: 0
+                                                    plannedValues[hourStart] = newInt
+                                                },
+                                                textStyle = LocalTextStyle.current.copy(
+                                                    fontSize = 11.sp,
+                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                modifier = Modifier
+                                                    .width(50.dp)
+                                                    .border(1.dp, Color.LightGray, MaterialTheme.shapes.extraSmall)
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        
+                                        Text("$actual", modifier = Modifier.weight(1f), fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                        
+                                        Text(
+                                            text = status, 
+                                            modifier = Modifier.weight(1.3f), 
+                                            fontSize = 11.sp, 
+                                            fontWeight = FontWeight.Bold,
+                                            color = statusColor,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                        )
+                                    }
+                                    HorizontalDivider(color = Color(0xFFF5F5F5))
+                                }
+                                
+                                // Total row
+                                val totalRatio = if (totalPlanned > 0) (totalActual.toFloat() / totalPlanned.toFloat()) else 0f
+                                val totalPct = totalRatio * 100
+                                val totalStatus = when {
+                                    totalPlanned == 0 && totalActual == 0 -> "-"
+                                    totalPlanned == 0 && totalActual > 0 -> "Excellent"
+                                    totalPct >= 90f -> "Excellent"
+                                    totalPct >= 80f -> "Better"
+                                    totalPct >= 70f -> "Good"
+                                    totalPct >= 50f -> "Average"
+                                    else -> "Poor"
+                                }
+                                val totalStatusColor = when (totalStatus) {
+                                    "Excellent" -> Color(0xFF2E7D32)
+                                    "Better" -> Color(0xFF4CAF50)
+                                    "Good" -> Color(0xFF2196F3)
+                                    "Average" -> Color(0xFFFF9800)
+                                    "Poor" -> Color(0xFFD32F2F)
+                                    else -> Color.Gray
+                                }
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().background(Color(0xFFFAFAFA)).padding(vertical = 6.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Total (Day)", modifier = Modifier.weight(1.5f), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Text("$totalPlanned", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text("$totalActual", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    Text(
+                                        text = totalStatus, 
+                                        modifier = Modifier.weight(1.3f), 
+                                        fontWeight = FontWeight.Bold, 
+                                        fontSize = 11.sp, 
+                                        color = totalStatusColor,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = if (selectedStatusFilter == null) "All Calls Logged" else "Calls filtered by: $selectedStatusFilter",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Color.DarkGray,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+
+                    if (filteredReports.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No matching records found.", color = Color.Gray)
+                            }
+                        }
+                    } else {
+                        items(filteredReports) { r ->
+                            ReadOnlyCallLogItem(log = r)
                         }
                     }
                 }
@@ -1105,6 +1379,7 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
         "Interested" -> Color(0xFF4CAF50)
         "Prospect" -> Color(0xFF2196F3)
         "Not Interested" -> Color(0xFF757575)
+        "Follow Up" -> Color(0xFFFF9800)
         else -> Color(0xFF9E9E9E)
     }
 
@@ -1224,6 +1499,31 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp
                         )
+                    }
+                }
+
+                if (log.status == "Interested" && log.enquiryReceived.isNotBlank()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Enquiry: ",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.width(70.dp)
+                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = if (log.enquiryReceived == "Yes") Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+                            border = BorderStroke(1.dp, if (log.enquiryReceived == "Yes") Color(0xFF81C784) else Color(0xFFE57373))
+                        ) {
+                            Text(
+                                text = log.enquiryReceived,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = if (log.enquiryReceived == "Yes") Color(0xFF2E7D32) else Color(0xFFC62828),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
 

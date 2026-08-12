@@ -19,7 +19,8 @@ data class CallRecord(
     val format: String = "Select Format",
     val isSaved: Boolean = false,
     val syncedBy: String? = null,
-    val enquiryReceived: String = ""
+    val enquiryReceived: String = "",
+    val category: String = ""
 )
 
 @Serializable
@@ -55,7 +56,8 @@ data class LoginResponse(
     val message: String,
     val userName: String? = null,
     val role: String? = null,
-    val empId: String? = null
+    val empId: String? = null,
+    val category: String? = null
 )
 
 @Serializable
@@ -66,7 +68,8 @@ data class RegisterRequest(
     val empId: String,
     val password: String,
     val role: String = "Executive",
-    val reportsTo: String = ""
+    val reportsTo: String = "",
+    val category: String = ""
 )
 
 @Serializable
@@ -77,6 +80,7 @@ data class TeamMember(
     val email: String = "",
     val phone: String = "",
     val reportsTo: String = "",
+    val category: String = "",
     val isDeleted: Boolean = false
 )
 

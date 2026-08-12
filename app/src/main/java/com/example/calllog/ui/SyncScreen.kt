@@ -482,24 +482,38 @@ fun FollowUpInterestedSection(
                                 fontSize = 15.sp,
                                 color = textColor
                             )
-                            if (!log.contactName.isNullOrBlank()) {
-                                Text(
-                                    text = log.contactName,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF333333),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            } else if (!log.name.isNullOrBlank()) {
-                                Text(
-                                    text = log.name,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF333333),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            val displayName = when {
+                                !log.contactName.isNullOrBlank() -> log.contactName
+                                !log.name.isNullOrBlank() -> log.name
+                                else -> ""
+                            }
+                            if (displayName.isNotEmpty()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = displayName,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF333333),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    if (!log.category.isNullOrBlank()) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Surface(
+                                            color = Color(0xFFE0F7FA),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = log.category,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF006064),
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(

@@ -95,4 +95,17 @@ interface UnifiedSyncApiService {
 
     @GET("version")
     suspend fun getVersionInfo(): Response<VersionInfo>
+
+    @GET("categories")
+    suspend fun getCategories(): Response<List<String>>
+
+    @POST("categories")
+    suspend fun addCategory(
+        @Body body: Map<String, String>
+    ): Response<Void>
+
+    @POST("updateUserCategory")
+    suspend fun updateUserCategory(
+        @Body body: Map<String, String>
+    ): Response<Void>
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -75,6 +76,7 @@ fun ManagementDashboard(role: String) {
     val reports by adminVM.reports.collectAsState()
     val uiState by adminVM.uiState.collectAsState()
     val allUsers by adminVM.allUsers.collectAsState()
+    val categories by adminVM.categories.collectAsState()
 
     var roleToAdd by remember { mutableStateOf<String?>(null) }
     var showUserManagement by remember { mutableStateOf(false) }
@@ -298,6 +300,7 @@ fun ManagementDashboard(role: String) {
             roleToAdd = r,
             browsingRole = browsingRole,
             availableTLs = allUsers.filter { it.role?.equals("TL", ignoreCase = true) == true },
+            categories = categories,
             onDismiss = { roleToAdd = null },
             onConfirm = { 
                 val finalReportsTo = if (it.reportsTo.isNotEmpty()) it.reportsTo else currentBrowsingId
@@ -481,6 +484,7 @@ fun DashboardMainView(
     val cleanRole = (role ?: "Executive").uppercase()
     val startDate by adminVM.startDate.collectAsState()
     val endDate by adminVM.endDate.collectAsState()
+    val categories by adminVM.categories.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
         // ── Action Buttons Bar ─────────────────────────────────────────────────
@@ -690,12 +694,14 @@ fun DashboardMainView(
             Spacer(Modifier.height(8.dp))
 
                 var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+                var selectedCategoryFilter by remember { mutableStateOf<String?>("All") }
                 var searchQuery by remember { mutableStateOf("") }
                 LaunchedEffect(reports) {
                     selectedStatusFilter = null
+                    selectedCategoryFilter = "All"
                 }
 
-                val filteredReports = remember(reports, selectedStatusFilter, searchQuery) {
+                val filteredReports = remember(reports, selectedStatusFilter, searchQuery, selectedCategoryFilter) {
                     var list = when (selectedStatusFilter) {
                         "Interested" -> reports.filter { it.status.equals("Interested", ignoreCase = true) }
                         "Not Interested" -> reports.filter { it.status.equals("Not Interested", ignoreCase = true) }
@@ -703,6 +709,9 @@ fun DashboardMainView(
                         "Missed Call" -> reports.filter { it.duration == 0L }
                         "Follow Up" -> reports.filter { it.status.equals("Follow Up", ignoreCase = true) }
                         else -> reports
+                    }
+                    if (selectedCategoryFilter != null && selectedCategoryFilter != "All") {
+                        list = list.filter { it.category.equals(selectedCategoryFilter, ignoreCase = true) }
                     }
                     if (searchQuery.isNotBlank()) {
                         val q = searchQuery.trim()
@@ -756,6 +765,25 @@ fun DashboardMainView(
                                 unfocusedBorderColor = Color.LightGray
                             )
                         )
+                    }
+                    item {
+                        val filterCategories = listOf("All") + categories
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            for (cat in filterCategories) {
+                                FilterChip(
+                                    selected = selectedCategoryFilter == cat,
+                                    onClick = { selectedCategoryFilter = cat },
+                                    label = { Text(cat, fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MgmtPrimary,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
                     }
                     item {
                         // Summary Statistics Card
@@ -1394,6 +1422,40 @@ fun UserManagementView(adminVM: AdminViewModel, allUsers: List<TeamMember>, curr
                     fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
             }
         }
+        if (SyncManager.userRole == "Admin") {
+            var newCategoryName by remember { mutableStateOf("") }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = newCategoryName,
+                    onValueChange = { newCategoryName = it },
+                    placeholder = { Text("New category name (e.g. Box, Book)", fontSize = 12.sp) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MgmtPrimary,
+                        unfocusedBorderColor = Color.LightGray
+                    )
+                )
+                Button(
+                    onClick = {
+                        if (newCategoryName.isNotBlank()) {
+                            adminVM.addCategory(newCategoryName.trim()) { success ->
+                                if (success) newCategoryName = ""
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MgmtPrimary)
+                ) {
+                    Text("Add", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
         LazyColumn(Modifier.fillMaxSize()) {
             items(allUsers) { user ->
                 var expandedRole by remember { mutableStateOf(false) }
@@ -1514,6 +1576,7 @@ fun AddUserDialog(
     roleToAdd: String,
     browsingRole: String,
     availableTLs: List<TeamMember>,
+    categories: List<String>,
     onDismiss: () -> Unit,
     onConfirm: (RegisterRequest) -> Unit
 ) {
@@ -1522,7 +1585,9 @@ fun AddUserDialog(
     var phone by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var selectedTL by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(if (categories.isNotEmpty()) categories.first() else "") }
     var tlExpanded by remember { mutableStateOf(false) }
+    var catExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1537,6 +1602,19 @@ fun AddUserDialog(
                 Spacer(Modifier.height(8.dp))
                 TextField(pass, {password -> pass=password}, label = {Text("Password")}, modifier = Modifier.fillMaxWidth())
                 
+                Spacer(Modifier.height(16.dp))
+                Text("Category:", fontWeight = FontWeight.SemiBold)
+                Box(Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { catExpanded = true }, Modifier.fillMaxWidth()) { 
+                        Text(if(selectedCategory.isEmpty()) "Select Category" else selectedCategory) 
+                    }
+                    DropdownMenu(catExpanded, { catExpanded = false }) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(text = { Text(cat) }, onClick = { selectedCategory = cat; catExpanded = false })
+                        }
+                    }
+                }
+
                 // Only show TL selection if we are at Manager level and adding an Executive
                 if (roleToAdd == "Executive" && browsingRole == "Manager") {
                     Spacer(Modifier.height(16.dp))
@@ -1556,7 +1634,7 @@ fun AddUserDialog(
         },
         confirmButton = { 
             Button(onClick = { 
-                onConfirm(RegisterRequest(name, email, phone, "", pass, roleToAdd, selectedTL))
+                onConfirm(RegisterRequest(name, email, phone, "", pass, roleToAdd, selectedTL, selectedCategory))
                 onDismiss()
             }, enabled = name.isNotBlank() && pass.isNotBlank() && (roleToAdd != "Executive" || selectedTL.isNotEmpty() || browsingRole != "Manager")) { 
                 Text("Create") 

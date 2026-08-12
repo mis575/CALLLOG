@@ -37,10 +37,52 @@ class AdminViewModel : ViewModel() {
     private val _endDate = MutableStateFlow<Long?>(null)
     val endDate: StateFlow<Long?> = _endDate.asStateFlow()
 
+    private val _categories = MutableStateFlow<List<String>>(emptyList())
+    val categories: StateFlow<List<String>> = _categories.asStateFlow()
+
     init {
         // Default to All for reports
         _startDate.value = null
         _endDate.value = null
+        loadCategories()
+    }
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            val list = SyncManager.getCategories()
+            _categories.value = list
+        }
+    }
+
+    fun addCategory(name: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            val success = SyncManager.addCategory(name)
+            if (success) {
+                _uiState.value = UiState.Success("Category added successfully")
+                loadCategories()
+                onResult(true)
+            } else {
+                _uiState.value = UiState.Error("Failed to add category")
+                onResult(false)
+            }
+        }
+    }
+
+    fun updateUserCategory(empId: String, category: String, refreshId: String? = null) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            val success = SyncManager.updateUserCategory(empId, category)
+            if (success) {
+                _uiState.value = UiState.Success("User category updated")
+                loadAllUsers()
+                if (refreshId != null) {
+                    loadMembers(refreshId)
+                }
+            } else {
+                _uiState.value = UiState.Error("Failed to update user category")
+            }
+        }
     }
 
     fun setDateRange(start: Long?, end: Long?) {

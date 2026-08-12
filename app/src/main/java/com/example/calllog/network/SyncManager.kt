@@ -93,6 +93,18 @@ object SyncManager {
         return try { api.deleteUser(DeleteUserRequest(empId)).isSuccessful } catch (e: Exception) { false }
     }
 
+    suspend fun getCategories(): List<String> {
+        return try { api.getCategories().body() ?: emptyList() } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun addCategory(name: String): Boolean {
+        return try { api.addCategory(mapOf("name" to name)).isSuccessful } catch (e: Exception) { false }
+    }
+
+    suspend fun updateUserCategory(empId: String, category: String): Boolean {
+        return try { api.updateUserCategory(mapOf("empId" to empId, "category" to category)).isSuccessful } catch (e: Exception) { false }
+    }
+
     suspend fun getMembers(targetId: String? = null): List<TeamMember> {
         val id = targetId ?: userEmpId
         return try { api.getMembers(id).body() ?: emptyList() } catch (e: Exception) { emptyList() }

@@ -167,6 +167,7 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
     fun loadAssignedContacts() {
         viewModelScope.launch(Dispatchers.IO) {
             _assignedContacts.value = SyncManager.getAssignedContacts(SyncManager.userEmpId)
+            loadTodaysLogs()
         }
     }
 

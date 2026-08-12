@@ -32,7 +32,10 @@ class AdminViewModel : ViewModel() {
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     private val _startDate = MutableStateFlow<Long?>(null)
+    val startDate: StateFlow<Long?> = _startDate.asStateFlow()
+
     private val _endDate = MutableStateFlow<Long?>(null)
+    val endDate: StateFlow<Long?> = _endDate.asStateFlow()
 
     init {
         // Default to All for reports

@@ -412,6 +412,8 @@ fun DashboardMainView(
     onTransferClick: () -> Unit
 ) {
     val cleanRole = (role ?: "Executive").uppercase()
+    val startDate by adminVM.startDate.collectAsState()
+    val endDate by adminVM.endDate.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -620,10 +622,29 @@ fun DashboardMainView(
                     }
                 }
 
+                val currentStart = startDate
+                val currentEnd = endDate
+                val daysCount = remember(currentStart, currentEnd, reports) {
+                    if (currentStart != null && currentEnd != null) {
+                        val diffMs = currentEnd - currentStart
+                        val days = (diffMs / (1000L * 60 * 60 * 24)).toInt()
+                        if (days <= 0) 1 else days
+                    } else {
+                        reports.map {
+                            val cal = Calendar.getInstance().apply { timeInMillis = it.date }
+                            cal.set(Calendar.HOUR_OF_DAY, 0)
+                            cal.set(Calendar.MINUTE, 0)
+                            cal.set(Calendar.SECOND, 0)
+                            cal.set(Calendar.MILLISECOND, 0)
+                            cal.timeInMillis
+                        }.distinct().size.coerceAtLeast(1)
+                    }
+                }
+
                 val plannedValues = remember {
                     mutableStateMapOf<Int, Int>().apply {
                         for (h in 9..18) {
-                            this[h] = 10
+                            this[h] = 30
                         }
                     }
                 }
@@ -789,7 +810,7 @@ fun DashboardMainView(
                                         val hour = cal.get(Calendar.HOUR_OF_DAY)
                                         hour == hourStart
                                     }
-                                    val planned = plannedValues[hourStart] ?: 0
+                                    val planned = (plannedValues[hourStart] ?: 30) * daysCount
                                     
                                     totalActual += actual
                                     totalPlanned += planned

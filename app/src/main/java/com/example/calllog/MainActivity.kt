@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SyncManager.init(applicationContext)
+        com.example.calllog.network.SocketManager.init(applicationContext)
         
         setContent {
             CallLogTheme {
@@ -54,6 +55,11 @@ class MainActivity : ComponentActivity() {
                 )
 
                 val isLoggedIn by SyncManager.isLoggedIn.collectAsState()
+                LaunchedEffect(isLoggedIn) {
+                    if (isLoggedIn) {
+                        com.example.calllog.network.SocketManager.registerDevice()
+                    }
+                }
                 var refreshCounter by remember { mutableIntStateOf(0) }
                 var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
 

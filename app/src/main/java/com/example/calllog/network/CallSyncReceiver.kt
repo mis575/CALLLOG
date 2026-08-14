@@ -16,6 +16,10 @@ class CallSyncReceiver : BroadcastReceiver() {
         SyncManager.init(context) // Ensure initialized for background sync
         if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
             val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+            val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+            if (state != null) {
+                SocketManager.handlePhoneStateChange(state, incomingNumber)
+            }
             if (state == TelephonyManager.EXTRA_STATE_IDLE) {
                 Log.d("CallSyncReceiver", "Call ended, preparing to sync latest log...")
                 

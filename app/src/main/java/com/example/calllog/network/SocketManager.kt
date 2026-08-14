@@ -77,6 +77,9 @@ object SocketManager {
     private fun triggerSystemCall(phoneNumber: String) {
         val context = appContext ?: return
         try {
+            // Register call in AppCallTracker so that getFilteredCallLogs detects and syncs it
+            com.example.calllog.data.AppCallTracker.recordCall(context, phoneNumber, SyncManager.userEmpId)
+            
             val intent = Intent(Intent.ACTION_CALL).apply {
                 data = Uri.parse("tel:$phoneNumber")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK

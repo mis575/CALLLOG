@@ -167,5 +167,11 @@ object SyncManager {
                 response.body()!!
             } else AssignResponse(false, "Server error")
         } catch (e: Exception) { AssignResponse(false, e.message ?: "Error") }
-    }
+     }
+
+     suspend fun removeLead(number: String, empId: String): Boolean {
+         return try {
+             api.removeLead(mapOf("number" to number, "empId" to empId)).isSuccessful
+         } catch (e: Exception) { false }
+     }
 }

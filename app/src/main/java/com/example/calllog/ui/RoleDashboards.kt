@@ -1336,18 +1336,29 @@ fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
                                     color = Color.LightGray
                                 )
                             }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isPending) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
-                                border = BorderStroke(1.dp, if (isPending) Color(0xFFFFB74D) else Color(0xFF81C784))
-                            ) {
-                                Text(
-                                    text = lead.status,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isPending) Color(0xFFF57C00) else Color(0xFF2E7D32)
-                                )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isPending) Color(0xFFFFF3E0) else Color(0xFFE8F5E9),
+                                    border = BorderStroke(1.dp, if (isPending) Color(0xFFFFB74D) else Color(0xFF81C784))
+                                ) {
+                                    Text(
+                                        text = lead.status,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isPending) Color(0xFFF57C00) else Color(0xFF2E7D32)
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                TextButton(
+                                    onClick = { adminVM.removeLead(lead.number, currentBrowsingId) },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFD32F2F)),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text("Remove", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

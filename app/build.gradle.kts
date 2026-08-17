@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.calllog"
         minSdk = 23
         targetSdk = 35
-        versionCode = 15
-        versionName = "2.4"
+        versionCode = 16
+        versionName = "2.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

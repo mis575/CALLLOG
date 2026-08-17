@@ -93,6 +93,11 @@ interface UnifiedSyncApiService {
     @POST("contacts/sync-from-sheet")
     suspend fun syncLeadsFromSheet(): Response<AssignResponse>
 
+    @POST("contacts/remove")
+    suspend fun removeLead(
+        @Body body: Map<String, String>
+    ): Response<ResponseBody>
+
     @GET("version")
     suspend fun getVersionInfo(): Response<VersionInfo>
 

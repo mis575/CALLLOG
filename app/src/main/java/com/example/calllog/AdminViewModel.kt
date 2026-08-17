@@ -242,4 +242,17 @@ class AdminViewModel : ViewModel() {
             }
         }
     }
+
+    fun removeLead(number: String, currentBrowsingId: String) {
+        _uiState.value = UiState.Loading
+        viewModelScope.launch {
+            val success = SyncManager.removeLead(number, SyncManager.userEmpId)
+            if (success) {
+                _uiState.value = UiState.Success("Lead removed successfully")
+                loadTeamLeads(currentBrowsingId)
+            } else {
+                _uiState.value = UiState.Error("Failed to remove lead")
+            }
+        }
+    }
 }

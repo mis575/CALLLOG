@@ -65,13 +65,24 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             val assignedMap = _assignedContacts.value.associateBy { it.number }
 
             val mergedLogsList = mutableListOf<CallRecord>()
+            val matchedDbIds = mutableSetOf<String>()
 
             // Process all system logs (and update with DB state if saved)
             systemLogs.forEach { systemLog ->
-                val dbLog = dbMap[systemLog.id]
+                var dbLog = dbMap[systemLog.id]
                 val currentLocalLog = currentUIStateMap[systemLog.id]
+                
+                // Fuzzy matching if not found by exact ID (same number within 10 minutes)
+                if (dbLog == null) {
+                    val tenMinsMs = 10 * 60 * 1000
+                    dbLog = dbLogs.find {
+                        it.number == systemLog.number &&
+                        Math.abs(it.date - systemLog.date) <= tenMinsMs
+                    }
+                }
 
                 if (dbLog != null) {
+                    matchedDbIds.add(dbLog.id)
                     // Update system log with database values
                     mergedLogsList.add(
                         systemLog.copy(
@@ -128,9 +139,9 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                 }
             }
 
-            // Next, add any database logs that are NOT in the system call logs
+            // Next, add any database logs that are NOT in the system call logs and weren't matched
             dbLogs.forEach { dbLog ->
-                if (!systemMap.containsKey(dbLog.id)) {
+                if (!matchedDbIds.contains(dbLog.id) && !systemMap.containsKey(dbLog.id)) {
                     mergedLogsList.add(dbLog)
                 }
             }

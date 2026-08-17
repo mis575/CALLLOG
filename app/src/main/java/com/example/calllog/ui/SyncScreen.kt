@@ -607,7 +607,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
         else             -> Color(0xFFECEFF1)
     }
 
-    val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up", "Busy", "No Answer")
+    val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up", "Busy", "Not Answering")
 
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(3.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -674,7 +674,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                                 DropdownMenuItem(text = { Text(s) }, onClick = {
                                     if (s == "Interested") {
                                         showEnquiryDialog = true
-                                    } else if (s == "Busy" || s == "No Answer") {
+                                    } else if (s == "Busy" || s == "No Answer" || s == "Not Answering") {
                                         localStatus = s
                                         localEnquiry = "No"
                                         viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "No")

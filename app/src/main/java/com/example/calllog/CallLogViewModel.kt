@@ -43,6 +43,11 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         loadTodaysLogs()
     }
 
+    private fun cleanNumber(num: String): String {
+        val digits = num.filter { it.isDigit() }
+        return if (digits.length >= 10) digits.takeLast(10) else digits
+    }
+
     fun loadTodaysLogs() {
         viewModelScope.launch(Dispatchers.IO) {
             // 0. Capture current UI state to preserve unsaved edits
@@ -62,7 +67,6 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             // Create maps for efficient lookup
             val dbMap = dbLogs.associateBy { it.id }
             val systemMap = systemLogs.associateBy { it.id }
-            val assignedMap = _assignedContacts.value.associateBy { it.number }
 
             val mergedLogsList = mutableListOf<CallRecord>()
             val matchedDbIds = mutableSetOf<String>()
@@ -76,7 +80,7 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                 if (dbLog == null) {
                     val tenMinsMs = 10 * 60 * 1000
                     dbLog = dbLogs.find {
-                        it.number == systemLog.number &&
+                        cleanNumber(it.number) == cleanNumber(systemLog.number) &&
                         Math.abs(it.date - systemLog.date) <= tenMinsMs
                     }
                 }
@@ -117,7 +121,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     // Not saved yet — preserve any in-progress edits the user has already typed
                     // so that auto-refresh doesn't wipe their unsaved work
                     val inProgress = _todaysLogs.value.find { it.id == systemLog.id }
-                    val assigned = assignedMap[systemLog.number]
+                    val cleanSysNum = cleanNumber(systemLog.number)
+                    val assigned = _assignedContacts.value.find { cleanNumber(it.number) == cleanSysNum }
                     if (inProgress != null && !inProgress.isSaved) {
                         // User has already started editing this log — keep their current edits
                         mergedLogsList.add(inProgress)

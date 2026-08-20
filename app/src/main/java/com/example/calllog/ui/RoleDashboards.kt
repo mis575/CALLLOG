@@ -704,14 +704,24 @@ fun DashboardMainView(
                     selectedCategoryFilter = "All"
                 }
 
-                val filteredReports = remember(reports, selectedStatusFilter, searchQuery, selectedCategoryFilter) {
+                val latestReportsOnly = remember(reports) {
+                    val latestMap = LinkedHashMap<String, CallRecord>()
+                    reports.forEach { log ->
+                        if (!latestMap.containsKey(log.number)) {
+                            latestMap[log.number] = log
+                        }
+                    }
+                    latestMap.values.toList()
+                }
+
+                val filteredReports = remember(latestReportsOnly, selectedStatusFilter, searchQuery, selectedCategoryFilter) {
                     var list = when (selectedStatusFilter) {
-                        "Interested" -> reports.filter { it.status.equals("Interested", ignoreCase = true) }
-                        "Not Interested" -> reports.filter { it.status.equals("Not Interested", ignoreCase = true) }
-                        "Prospect" -> reports.filter { it.status.equals("Prospect", ignoreCase = true) }
-                        "Missed Call" -> reports.filter { it.duration == 0L }
-                        "Follow Up" -> reports.filter { it.status.equals("Follow Up", ignoreCase = true) }
-                        else -> reports
+                        "Interested" -> latestReportsOnly.filter { it.status.equals("Interested", ignoreCase = true) }
+                        "Not Interested" -> latestReportsOnly.filter { it.status.equals("Not Interested", ignoreCase = true) }
+                        "Prospect" -> latestReportsOnly.filter { it.status.equals("Prospect", ignoreCase = true) }
+                        "Missed Call" -> latestReportsOnly.filter { it.duration == 0L }
+                        "Follow Up" -> latestReportsOnly.filter { it.status.equals("Follow Up", ignoreCase = true) }
+                        else -> latestReportsOnly
                     }
                     if (selectedCategoryFilter != null && selectedCategoryFilter != "All") {
                         list = list.filter { it.category.equals(selectedCategoryFilter, ignoreCase = true) }
@@ -815,7 +825,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                                        Text("${latestReportsOnly.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -830,7 +840,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Interested", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
+                                        Text("${latestReportsOnly.count { it.status.equals("Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF43A047))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -845,7 +855,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Not Interested", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.count { it.status.equals("Not Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE53935))
+                                        Text("${latestReportsOnly.count { it.status.equals("Not Interested", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFE53935))
                                     }
                                 }
                                 Spacer(Modifier.height(8.dp))
@@ -866,7 +876,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Prospect", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.count { it.status.equals("Prospect", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
+                                        Text("${latestReportsOnly.count { it.status.equals("Prospect", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -881,7 +891,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Missed Call", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.count { it.duration == 0L }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+                                        Text("${latestReportsOnly.count { it.duration == 0L }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -896,7 +906,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("Follow Up", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${reports.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
+                                        Text("${latestReportsOnly.count { it.status.equals("Follow Up", ignoreCase = true) }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF9800))
                                     }
                                 }
                             }

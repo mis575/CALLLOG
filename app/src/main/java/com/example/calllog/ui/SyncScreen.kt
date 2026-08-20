@@ -97,8 +97,18 @@ fun SyncScreen(
     var customLabel by remember { mutableStateOf("") }
     val df = SimpleDateFormat("dd MMM", Locale.getDefault())
 
-    val filteredLogs = remember(todaysLogs, selectedStatusFilter, searchQuery) {
-        var list = todaysLogs
+    val latestLogsOnly = remember(todaysLogs) {
+        val latestMap = LinkedHashMap<String, CallRecord>()
+        todaysLogs.forEach { log ->
+            if (!latestMap.containsKey(log.number)) {
+                latestMap[log.number] = log
+            }
+        }
+        latestMap.values.toList()
+    }
+
+    val filteredLogs = remember(latestLogsOnly, selectedStatusFilter, searchQuery) {
+        var list = latestLogsOnly
         if (selectedStatusFilter != null) {
             list = when (selectedStatusFilter) {
                 "Interested" -> list.filter { it.status.equals("Interested", ignoreCase = true) }
@@ -288,7 +298,7 @@ fun SyncScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatPill(
                                 label = "Total",
-                                value = "${todaysLogs.size}",
+                                value = "${latestLogsOnly.size}",
                                 textColor = PrimaryBlue,
                                 bgColor = BlueLight,
                                 border = if (selectedStatusFilter == null) BorderStroke(1.5.dp, PrimaryBlue) else null,
@@ -297,7 +307,7 @@ fun SyncScreen(
                             )
                             StatPill(
                                 label = "Interested",
-                                value = "${todaysLogs.count { it.status.equals("Interested", ignoreCase = true) }}",
+                                value = "${latestLogsOnly.count { it.status.equals("Interested", ignoreCase = true) }}",
                                 textColor = GreenOk,
                                 bgColor = GreenLight,
                                 border = if (selectedStatusFilter == "Interested") BorderStroke(1.5.dp, GreenOk) else null,
@@ -306,7 +316,7 @@ fun SyncScreen(
                             )
                             StatPill(
                                 label = "Follow Up",
-                                value = "${todaysLogs.count { it.status.equals("Follow Up",  ignoreCase = true) }}",
+                                value = "${latestLogsOnly.count { it.status.equals("Follow Up",  ignoreCase = true) }}",
                                 textColor = OrangeOk,
                                 bgColor = OrangeLight,
                                 border = if (selectedStatusFilter == "Follow Up") BorderStroke(1.5.dp, OrangeOk) else null,
@@ -320,7 +330,7 @@ fun SyncScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatPill(
                                 label = "Enquiry",
-                                value = "${todaysLogs.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}",
+                                value = "${latestLogsOnly.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}",
                                 textColor = GreenOk,
                                 bgColor = GreenLight,
                                 border = if (selectedStatusFilter == "Enquiry") BorderStroke(1.5.dp, GreenOk) else null,
@@ -329,7 +339,7 @@ fun SyncScreen(
                             )
                             StatPill(
                                 label = "No Enquiry",
-                                value = "${todaysLogs.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}",
+                                value = "${latestLogsOnly.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}",
                                 textColor = RedOk,
                                 bgColor = RedLight,
                                 border = if (selectedStatusFilter == "No Enquiry") BorderStroke(1.5.dp, RedOk) else null,
@@ -338,7 +348,7 @@ fun SyncScreen(
                             )
                             StatPill(
                                 label = "Prospect",
-                                value = "${todaysLogs.count { it.status.equals("Prospect", ignoreCase = true) }}",
+                                value = "${latestLogsOnly.count { it.status.equals("Prospect", ignoreCase = true) }}",
                                 textColor = PrimaryBlue,
                                 bgColor = BlueLight,
                                 border = if (selectedStatusFilter == "Prospect") BorderStroke(1.5.dp, PrimaryBlue) else null,
@@ -589,6 +599,13 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
         if (log.isSaved) justSaved = true  // only accept true from server, not false
     }
 
+    var isSavingLocal by remember(log.id) { mutableStateOf(false) }
+    LaunchedEffect(uiState) {
+        if (uiState is UiState.Error) {
+            isSavingLocal = false
+        }
+    }
+
     var expanded          by remember { mutableStateOf(false) }
     var showEnquiryDialog by remember { mutableStateOf(false) }
 
@@ -609,6 +626,86 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
 
     val statuses = listOf("Interested", "Not Interested", "Prospect", "Follow Up", "Busy", "Not Answering")
 
+    var showHistoryDialog by remember { mutableStateOf(false) }
+    val historyLogs by viewModel.contactHistory.collectAsState()
+
+    LaunchedEffect(log.id, log.isSaved) {
+        if (!log.isSaved && localContactName.isBlank() && localCompanyName.isBlank()) {
+            viewModel.getContactDetails(log.number) { details ->
+                if (details != null) {
+                    localContactName = details.contactName ?: details.name ?: ""
+                    localCompanyName = details.companyName ?: ""
+                    localAddress = details.address ?: ""
+                    localEmail = details.email ?: ""
+                    viewModel.updateCallDetails(
+                        log.id,
+                        contactName = localContactName,
+                        companyName = localCompanyName,
+                        address = localAddress,
+                        email = localEmail
+                    )
+                }
+            }
+        }
+    }
+
+    if (showHistoryDialog) {
+        LaunchedEffect(log.number) {
+            viewModel.loadContactHistory(log.number)
+        }
+        AlertDialog(
+            onDismissRequest = { showHistoryDialog = false },
+            title = { Text("Call History: ${log.number}", fontWeight = FontWeight.Bold) },
+            text = {
+                Box(modifier = Modifier.heightIn(max = 400.dp)) {
+                    if (historyLogs.isEmpty()) {
+                        Text("No past records found.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(items = historyLogs, key = { it.id }) { h ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FA)),
+                                    border = BorderStroke(1.dp, DividerColor)
+                                ) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text(
+                                                text = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(h.date)),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = h.status,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (h.status.lowercase()) {
+                                                    "interested" -> GreenOk
+                                                    "follow up" -> OrangeOk
+                                                    "not interested" -> RedOk
+                                                    else -> Color.DarkGray
+                                                }
+                                            )
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        Text("Caller: ${h.syncedBy ?: "Unknown"}", fontSize = 10.sp)
+                                        if (!h.description.isNullOrEmpty()) {
+                                            Spacer(Modifier.height(4.dp))
+                                            Text("Note: ${h.description}", fontSize = 11.sp, color = Color.DarkGray)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHistoryDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(3.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.5.dp, statusColor.copy(alpha = 0.25f))
@@ -624,7 +721,20 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
-            Text(log.number, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF1A1A2E), modifier = Modifier.padding(vertical = 6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(log.number, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF1A1A2E), modifier = Modifier.padding(vertical = 6.dp))
+                TextButton(
+                    onClick = { showHistoryDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("History", fontSize = 11.sp, color = PrimaryBlue, fontWeight = FontWeight.Bold)
+                }
+            }
             if (localEnquiry.isNotBlank()) {
                 val isYes = localEnquiry.equals("Yes", true)
                 Surface(shape = RoundedCornerShape(8.dp), color = if (isYes) GreenLight else RedLight) {
@@ -727,13 +837,16 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
-                    onClick = { viewModel.saveCallLog(log.id) },
+                    onClick = {
+                        isSavingLocal = true
+                        viewModel.saveCallLog(log.id)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    enabled = uiState !is UiState.Loading
+                    enabled = !isSavingLocal && uiState !is UiState.Loading
                 ) {
-                    if (uiState is UiState.Loading) {
+                    if (isSavingLocal || uiState is UiState.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                     }

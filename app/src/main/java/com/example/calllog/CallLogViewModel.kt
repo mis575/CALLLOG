@@ -234,4 +234,20 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+
+    fun getContactDetails(number: String, onResult: (CallRecord?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val details = SyncManager.getContactDetails(number)
+            onResult(details)
+        }
+    }
+
+    private val _contactHistory = MutableStateFlow<List<CallRecord>>(emptyList())
+    val contactHistory: StateFlow<List<CallRecord>> = _contactHistory.asStateFlow()
+
+    fun loadContactHistory(number: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _contactHistory.value = SyncManager.getContactHistory(number)
+        }
+    }
 }

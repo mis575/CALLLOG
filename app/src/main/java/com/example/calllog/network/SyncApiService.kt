@@ -114,4 +114,14 @@ interface UnifiedSyncApiService {
     suspend fun updateUserCategory(
         @Body body: Map<String, String>
     ): Response<Void>
+
+    @GET("contacts/details/{number}")
+    suspend fun getContactDetails(
+        @Path("number") number: String
+    ): Response<CallRecord?>
+
+    @GET("contacts/history/{number}")
+    suspend fun getContactHistory(
+        @Path("number") number: String
+    ): Response<List<CallRecord>>
 }

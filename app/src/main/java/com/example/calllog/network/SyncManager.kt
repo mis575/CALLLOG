@@ -172,6 +172,14 @@ object SyncManager {
      suspend fun removeLead(number: String, empId: String): Boolean {
          return try {
              api.removeLead(mapOf("number" to number, "empId" to empId)).isSuccessful
-         } catch (e: Exception) { false }
-     }
+          } catch (e: Exception) { false }
+      }
+
+      suspend fun getContactDetails(number: String): CallRecord? {
+          return try { api.getContactDetails(number).body() } catch (e: Exception) { null }
+      }
+
+      suspend fun getContactHistory(number: String): List<CallRecord> {
+          return try { api.getContactHistory(number).body() ?: emptyList() } catch (e: Exception) { emptyList() }
+      }
 }

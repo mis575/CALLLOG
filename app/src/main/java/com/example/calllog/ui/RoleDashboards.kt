@@ -233,7 +233,7 @@ fun ManagementDashboard(role: String) {
                 }
 
                 Column(Modifier.padding(16.dp)) {
-                    if (currentTab == 0 || role == "Admin") {
+                    if (currentTab == 0) {
                         DateFilterRow(onFilterChange = { start, end ->
                             adminVM.setDateRange(start, end)
                             // Refresh reports for selected employee if set, otherwise the current browsing level team reports
@@ -1226,15 +1226,57 @@ fun ExportSelectionDialog(
 fun TeamLeadsView(adminVM: AdminViewModel, currentBrowsingId: String) {
     val leads by adminVM.teamLeadsData.collectAsState()
     val transferMembers by adminVM.transferMembers.collectAsState()
+    val allUsers by adminVM.allUsers.collectAsState()
     val selectedLeads = remember { mutableStateListOf<String>() }
     var showTransferDialog by remember { mutableStateOf(false) }
+    var selectedManagerId by remember { mutableStateOf("All") }
+    var managerDropdownExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentBrowsingId) {
-        adminVM.loadTeamLeads(currentBrowsingId)
+    LaunchedEffect(currentBrowsingId, selectedManagerId) {
+        val targetId = if (SyncManager.userRole == "Admin" && selectedManagerId != "All") selectedManagerId else currentBrowsingId
+        adminVM.loadTeamLeads(targetId)
         adminVM.loadTransferMembers(SyncManager.userEmpId)
     }
 
     Column(Modifier.fillMaxSize()) {
+        if (SyncManager.userRole == "Admin") {
+            val managers = allUsers.filter { it.role?.equals("Manager", ignoreCase = true) == true }
+            val selectedManagerName = if (selectedManagerId == "All") "All Managers" else {
+                managers.find { it.empId == selectedManagerId }?.name ?: selectedManagerId
+            }
+            
+            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                OutlinedButton(
+                    onClick = { managerDropdownExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Filter Manager: $selectedManagerName", color = MgmtPrimary)
+                }
+                DropdownMenu(
+                    expanded = managerDropdownExpanded,
+                    onDismissRequest = { managerDropdownExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("All Managers") },
+                        onClick = {
+                            selectedManagerId = "All"
+                            managerDropdownExpanded = false
+                        }
+                    )
+                    managers.forEach { m ->
+                        DropdownMenuItem(
+                            text = { Text("${m.name} (ID: ${m.empId})") },
+                            onClick = {
+                                selectedManagerId = m.empId
+                                managerDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         // Header row
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),

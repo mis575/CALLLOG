@@ -8,6 +8,7 @@ import com.example.calllog.data.LoginRequest
 import com.example.calllog.data.LoginResponse
 import com.example.calllog.data.RegisterRequest
 import com.example.calllog.data.SyncRequest
+import com.example.calllog.data.SyncResponse
 import com.example.calllog.data.TeamMember
 import com.example.calllog.data.UpdateHierarchyRequest
 import com.example.calllog.data.ContactAssignmentRequest
@@ -68,7 +69,7 @@ interface UnifiedSyncApiService {
     @POST("sync")
     suspend fun syncCallLogs(
         @Body request: SyncRequest
-    ): Response<ResponseBody>
+    ): Response<SyncResponse>
 
     @GET("getTeamMembersForTransfer/{empId}")
     suspend fun getTeamMembersForTransfer(

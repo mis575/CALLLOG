@@ -29,7 +29,7 @@ object SyncManager {
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
+        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.NONE })
         .build()
 
     private val api = Retrofit.Builder()
@@ -125,13 +125,13 @@ object SyncManager {
         while (attempts > 0) {
             try {
                 val response = api.syncCallLogs(SyncRequest(userName, userEmpId, logs))
-                if (response.isSuccessful) return true
+                if (response.isSuccessful && response.body()?.saved == true && response.body()?.sheetsSynced == true) return true
             } catch (e: Exception) {
                 // Ignore transient errors and retry
             }
             attempts--
             if (attempts > 0) {
-                kotlinx.coroutines.delay(1500)
+                kotlinx.coroutines.delay(500)
             }
         }
         return false

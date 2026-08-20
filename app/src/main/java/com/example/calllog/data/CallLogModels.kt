@@ -51,6 +51,12 @@ data class SyncRequest(
 )
 
 @Serializable
+data class SyncResponse(
+    val saved: Boolean = false,
+    val sheetsSynced: Boolean = false
+)
+
+@Serializable
 data class LoginResponse(
     val success: Boolean,
     val message: String,

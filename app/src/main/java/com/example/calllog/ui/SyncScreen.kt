@@ -131,8 +131,17 @@ fun SyncScreen(
             val q = searchQuery.trim()
             list = list.filter {
                 it.number.contains(q, ignoreCase = true) ||
+                (it.name ?: "").contains(q, ignoreCase = true) ||
+                (it.contactName ?: "").contains(q, ignoreCase = true) ||
                 (it.companyName ?: "").contains(q, ignoreCase = true) ||
-                (it.contactName ?: "").contains(q, ignoreCase = true)
+                (it.address ?: "").contains(q, ignoreCase = true) ||
+                (it.email ?: "").contains(q, ignoreCase = true) ||
+                (it.syncedBy ?: "").contains(q, ignoreCase = true) ||
+                (it.description ?: "").contains(q, ignoreCase = true) ||
+                (it.status ?: "").contains(q, ignoreCase = true) ||
+                (it.category ?: "").contains(q, ignoreCase = true) ||
+                (it.format ?: "").contains(q, ignoreCase = true) ||
+                (it.followUpDate ?: "").contains(q, ignoreCase = true)
             }
         }
         list

@@ -464,6 +464,13 @@ fun FollowUpInterestedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(followUpLeads) { log ->
+                    var showHistoryDialog by remember { mutableStateOf(false) }
+                    if (showHistoryDialog) {
+                        com.example.calllog.ui.ContactHistoryModalDialog(
+                            number = log.number,
+                            onDismiss = { showHistoryDialog = false }
+                        )
+                    }
                     val isFollowUp = log.status.equals("Follow Up", ignoreCase = true)
                     val cardBg     = if (isFollowUp) OrangeLight else GreenLight
                     val cardBorder = if (isFollowUp) Color(0xFFFFB74D) else Color(0xFF81C784)
@@ -472,7 +479,7 @@ fun FollowUpInterestedSection(
 
                     Card(
                         modifier = Modifier
-                            .width(170.dp)
+                            .width(180.dp)
                             .clickable {
                                 onLeadClick(log.number)
                                 android.widget.Toast
@@ -485,18 +492,31 @@ fun FollowUpInterestedSection(
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
-                            // Status badge
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = textColor.copy(alpha = 0.15f)
+                            // Status badge & History button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = statusLabel,
-                                    fontSize = 9.sp,
-                                    color = textColor,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = textColor.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = statusLabel,
+                                        fontSize = 9.sp,
+                                        color = textColor,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { showHistoryDialog = true },
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(24.dp)
+                                ) {
+                                    Text("📜 History", fontSize = 10.sp, color = PrimaryBlue, fontWeight = FontWeight.Bold)
+                                }
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(

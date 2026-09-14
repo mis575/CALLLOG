@@ -42,6 +42,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // ── Shared design tokens for Management dashboards ──────────────────────────
 private val MgmtPrimary   = Color(0xFF1565C0)
@@ -1951,7 +1953,152 @@ fun CustomDateRangeDialog(
 }
 
 @Composable
+fun ContactHistoryModalDialog(
+    number: String,
+    onDismiss: () -> Unit
+) {
+    var historyLogs by remember { mutableStateOf<List<CallRecord>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(number) {
+        isLoading = true
+        historyLogs = withContext(Dispatchers.IO) {
+            SyncManager.getContactHistory(number)
+        }
+        isLoading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "Call History",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF1A1A2E)
+                )
+                Text(
+                    text = "Phone: $number",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp), color = Color(0xFF1565C0))
+                } else if (historyLogs.isEmpty()) {
+                    Text("No past call history found.", color = Color.Gray, fontSize = 13.sp)
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(items = historyLogs, key = { it.id }) { h ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA)),
+                                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                            ) {
+                                Column(Modifier.padding(10.dp)) {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(h.date)),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF333333)
+                                        )
+                                        val hStatusColor = when (h.status.lowercase()) {
+                                            "interested" -> Color(0xFF2E7D32)
+                                            "follow up" -> Color(0xFFE65100)
+                                            "not interested" -> Color(0xFFC62828)
+                                            "prospect" -> Color(0xFF6A1B9A)
+                                            else -> Color.DarkGray
+                                        }
+                                        val hStatusBg = when (h.status.lowercase()) {
+                                            "interested" -> Color(0xFFE8F5E9)
+                                            "follow up" -> Color(0xFFFFF3E0)
+                                            "not interested" -> Color(0xFFFFEBEE)
+                                            "prospect" -> Color(0xFFF3E5F5)
+                                            else -> Color(0xFFECEFF1)
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = hStatusBg
+                                        ) {
+                                            Text(
+                                                text = h.status.ifBlank { "Logged" },
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = hStatusColor
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Caller: ${h.syncedBy ?: "Unknown"}", fontSize = 11.sp, color = Color(0xFF555555))
+                                    val contactInfo = listOfNotNull(
+                                        h.contactName.takeIf { !it.isNullOrBlank() },
+                                        h.companyName.takeIf { !it.isNullOrBlank() }
+                                    ).joinToString(" @ ")
+                                    if (contactInfo.isNotEmpty()) {
+                                        Text(
+                                            text = "Contact: $contactInfo",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF333333)
+                                        )
+                                    }
+                                    if (!h.description.isNullOrEmpty()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = "Notes: ${h.description}",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF424242),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.White, shape = RoundedCornerShape(4.dp))
+                                                .padding(6.dp)
+                                                .border(BorderStroke(1.dp, Color(0xFFEEEEEE)), shape = RoundedCornerShape(4.dp))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+            }
+        }
+    )
+}
+
+@Composable
 fun ReadOnlyCallLogItem(log: CallRecord) {
+    var showHistoryDialog by remember { mutableStateOf(false) }
+
+    if (showHistoryDialog) {
+        ContactHistoryModalDialog(
+            number = log.number,
+            onDismiss = { showHistoryDialog = false }
+        )
+    }
+
     val df = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     val callTypeLabel = when (log.type) {
         1 -> "Incoming"
@@ -2006,17 +2153,34 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
                     fontSize = 13.sp,
                     color = Color(0xFF333333)
                 )
-                Surface(
-                    shape = MaterialTheme.shapes.extraSmall,
-                    color = Color(0xFFF5F5F5),
-                    border = BorderStroke(1.dp, Color.LightGray)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "$callTypeLabel (${log.duration}s)",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 10.sp
-                    )
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = Color(0xFFF5F5F5),
+                        border = BorderStroke(1.dp, Color.LightGray)
+                    ) {
+                        Text(
+                            text = "$callTypeLabel (${log.duration}s)",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 10.sp
+                        )
+                    }
+                    TextButton(
+                        onClick = { showHistoryDialog = true },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                        modifier = Modifier.height(26.dp)
+                    ) {
+                        Text(
+                            text = "📜 History",
+                            fontSize = 11.sp,
+                            color = Color(0xFF1565C0),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
             
@@ -2206,9 +2370,16 @@ fun AssignedLeadsSection(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(assignedContacts) { lead ->
+                        var showHistoryDialog by remember { mutableStateOf(false) }
+                        if (showHistoryDialog) {
+                            ContactHistoryModalDialog(
+                                number = lead.number,
+                                onDismiss = { showHistoryDialog = false }
+                            )
+                        }
                         Card(
                             modifier = Modifier
-                                .width(180.dp)
+                                .width(190.dp)
                                 .clickable {
                                     onLeadClick(lead.number)
                                     Toast.makeText(context, "Loaded ${lead.number} to dialer", Toast.LENGTH_SHORT).show()
@@ -2217,12 +2388,25 @@ fun AssignedLeadsSection(
                             border = BorderStroke(1.dp, Color(0xFFFFB74D))
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
-                                Text(
-                                    text = lead.number,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFFE65100)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = lead.number,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFFE65100)
+                                    )
+                                    TextButton(
+                                        onClick = { showHistoryDialog = true },
+                                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                                        modifier = Modifier.height(24.dp)
+                                    ) {
+                                        Text("📜 History", fontSize = 10.sp, color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)
+                                    }
+                                }
                                 if (!lead.name.isNullOrBlank()) {
                                     Text(
                                         text = lead.name,

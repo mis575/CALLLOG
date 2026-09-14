@@ -875,7 +875,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                 }
                 if (showFollowUpDatePicker) {
                     SimpleDatePickerDialog(
-                        initialSelectedDateMillis = null,
+                        initialSelectedDateMillis = System.currentTimeMillis(),
                         onDateSelected = { millis ->
                             val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(millis))
                             localFollowUpDate = formattedDate

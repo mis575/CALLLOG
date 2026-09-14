@@ -1857,7 +1857,8 @@ fun SimpleDatePickerDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    datePickerState.selectedDateMillis?.let { onDateSelected(it) }
+                    val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                    onDateSelected(millis)
                     onDismiss()
                 }
             ) {

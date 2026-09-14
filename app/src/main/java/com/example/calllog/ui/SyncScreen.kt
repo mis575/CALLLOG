@@ -959,6 +959,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                     localEnquiry = "No"
                     viewModel.updateCallDetails(log.id, status = "Follow Up", enquiryReceived = "No")
                     showEnquiryDialog = false
+                    showFollowUpDatePicker = true
                 },
                     colors = ButtonDefaults.buttonColors(containerColor = RedOk), shape = RoundedCornerShape(10.dp)) { Text("No") }
             }

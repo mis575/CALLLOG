@@ -102,10 +102,12 @@ class AdminViewModel : ViewModel() {
         }
     }
 
-    fun loadReports(ids: List<String>, includeSubs: Boolean = false) {
+    fun loadReports(ids: List<String>, includeSubs: Boolean = false, ignoreDates: Boolean = false) {
         _uiState.value = UiState.Loading
         viewModelScope.launch {
-            _reports.value = SyncManager.getFilteredLogs(ids, _startDate.value, _endDate.value, includeSubs)
+            val startVal = if (ignoreDates) null else _startDate.value
+            val endVal = if (ignoreDates) null else _endDate.value
+            _reports.value = SyncManager.getFilteredLogs(ids, startVal, endVal, includeSubs)
             _uiState.value = UiState.Success("Loaded")
         }
     }

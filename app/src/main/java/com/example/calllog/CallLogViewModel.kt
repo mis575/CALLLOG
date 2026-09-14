@@ -48,19 +48,22 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         return if (digits.length >= 10) digits.takeLast(10) else digits
     }
 
-    fun loadTodaysLogs() {
+    fun loadTodaysLogs(ignoreDates: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             // 0. Capture current UI state to preserve unsaved edits
             val currentUIStateMap = _todaysLogs.value.associateBy { it.id }
 
+            val startVal = if (ignoreDates) null else _startDate.value
+            val endVal = if (ignoreDates) null else _endDate.value
+
             // 1. Get system call logs from device
-            val systemLogs = repository.getFilteredCallLogs(SyncManager.userEmpId, _startDate.value, _endDate.value)
+            val systemLogs = repository.getFilteredCallLogs(SyncManager.userEmpId, startVal, endVal)
 
             // 2. Fetch all saved logs for this user from DB using getFilteredLogs
             val dbLogs = SyncManager.getFilteredLogs(
                 ids = listOf(SyncManager.userEmpId),
-                start = _startDate.value,
-                end = _endDate.value,
+                start = startVal,
+                end = endVal,
                 includeSubs = false
             )
 

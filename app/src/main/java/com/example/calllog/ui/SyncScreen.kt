@@ -92,6 +92,14 @@ fun SyncScreen(
     var selectedFilter by remember { mutableStateOf("Today") }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var lastSearchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(searchQuery) {
+        if ((searchQuery.isNotBlank() && lastSearchQuery.isBlank()) || (searchQuery.isBlank() && lastSearchQuery.isNotBlank())) {
+            viewModel.loadTodaysLogs(ignoreDates = searchQuery.isNotBlank())
+        }
+        lastSearchQuery = searchQuery
+    }
     val filters = listOf("Today", "Yesterday", "Last 7 Days", "Last Month", "All", "Custom")
     var showCustomDialog by remember { mutableStateOf(false) }
     var customLabel by remember { mutableStateOf("") }

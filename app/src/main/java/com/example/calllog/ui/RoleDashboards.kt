@@ -750,6 +750,17 @@ fun DashboardMainView(
                 var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
                 var selectedCategoryFilter by remember { mutableStateOf<String?>("All") }
                 var searchQuery by remember { mutableStateOf("") }
+                var lastSearchQuery by remember { mutableStateOf("") }
+
+                LaunchedEffect(searchQuery) {
+                    if ((searchQuery.isNotBlank() && lastSearchQuery.isBlank()) || (searchQuery.isBlank() && lastSearchQuery.isNotBlank())) {
+                        val targetIds = if (selectedEmpId.isBlank() || selectedEmpId == "All") listOf(currentBrowsingId) else listOf(selectedEmpId)
+                        val includeSubs = selectedEmpId.isBlank() || selectedEmpId == "All"
+                        adminVM.loadReports(targetIds, includeSubs = includeSubs, ignoreDates = searchQuery.isNotBlank())
+                    }
+                    lastSearchQuery = searchQuery
+                }
+
                 LaunchedEffect(reports) {
                     selectedStatusFilter = null
                     selectedCategoryFilter = "All"

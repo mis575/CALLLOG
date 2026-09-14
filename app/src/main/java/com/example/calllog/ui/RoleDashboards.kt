@@ -249,7 +249,10 @@ fun ManagementDashboard(role: String) {
                         DashboardMainView(browsingRole, adminVM, members, reports, uiState, selectedEmpId, context, currentBrowsingId,
                             onAddUser = { roleToAdd = it },
                             onSelectMember = { m ->
-                                if (m.role?.equals("Manager", ignoreCase = true) == true || 
+                                if (m.empId.isEmpty()) {
+                                    selectedEmpId = ""
+                                    adminVM.loadReports(listOf(currentBrowsingId), includeSubs = true)
+                                } else if (m.role?.equals("Manager", ignoreCase = true) == true || 
                                     m.role?.equals("TL", ignoreCase = true) == true) {
                                     selectedEmpId = "" // Clear previous individual selection
                                     browsingStack.add(BrowsingContext(m.empId, m.name, m.role ?: "Executive"))
@@ -688,10 +691,56 @@ fun DashboardMainView(
             LinearProgressIndicator(Modifier.fillMaxWidth())
         } else {
             val reportTitle = if (selectedEmpId.isEmpty()) "Team/Overall Report" else "Individual Report"
-            Row(modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.width(4.dp).height(18.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
-                Spacer(Modifier.width(8.dp))
-                Text(reportTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1A1A2E))
+            var expandedTeamMenu by remember { mutableStateOf(false) }
+            val selectedMemberObj = members.find { it.empId == selectedEmpId }
+            val selectedTeamLabel = if (selectedEmpId.isEmpty()) "All Team Members" else "${selectedMemberObj?.name ?: selectedEmpId}"
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.width(4.dp).height(18.dp).background(MgmtPrimary, RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.width(8.dp))
+                    Text(reportTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1A1A2E))
+                }
+
+                // Team / Member Report Dropdown
+                Box {
+                    OutlinedButton(
+                        onClick = { expandedTeamMenu = true },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MgmtPrimary)
+                    ) {
+                        Text("👥 Team: $selectedTeamLabel ▾", fontSize = 12.sp, color = MgmtPrimary, fontWeight = FontWeight.SemiBold)
+                    }
+                    DropdownMenu(
+                        expanded = expandedTeamMenu,
+                        onDismissRequest = { expandedTeamMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Team Members", fontWeight = if (selectedEmpId.isEmpty()) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = {
+                                expandedTeamMenu = false
+                                onSelectMember(TeamMember(empId = "", name = "All Team Members", role = ""))
+                            }
+                        )
+                        HorizontalDivider()
+                        members.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text("${m.name} (${m.role ?: "Executive"})", fontWeight = if (selectedEmpId == m.empId) FontWeight.Bold else FontWeight.Normal) },
+                                onClick = {
+                                    expandedTeamMenu = false
+                                    onSelectMember(m)
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(8.dp))

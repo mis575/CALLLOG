@@ -2060,6 +2060,15 @@ fun ContactHistoryModalDialog(
                                             color = Color(0xFF333333)
                                         )
                                     }
+                                    if (h.status == "Follow Up" && !h.followUpDate.isNullOrBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = "📅 Follow Up Date: ${h.followUpDate}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFE65100)
+                                        )
+                                    }
                                     if (!h.description.isNullOrEmpty()) {
                                         Spacer(Modifier.height(4.dp))
                                         Text(
@@ -2248,6 +2257,31 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp
                         )
+                    }
+                }
+
+                if (log.status == "Follow Up" && log.followUpDate.isNotBlank()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "FollowUp: ",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.width(70.dp)
+                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = Color(0xFFFFF3E0),
+                            border = BorderStroke(1.dp, Color(0xFFFFB74D))
+                        ) {
+                            Text(
+                                text = "📅 ${log.followUpDate}",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = Color(0xFFE65100),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
 

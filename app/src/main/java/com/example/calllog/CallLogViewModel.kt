@@ -168,7 +168,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         status: String? = null,
         email: String? = null,
         format: String? = null,
-        enquiryReceived: String? = null
+        enquiryReceived: String? = null,
+        followUpDate: String? = null
     ) {
         _todaysLogs.value = _todaysLogs.value.map { log ->
             if (log.id == callId) {
@@ -180,7 +181,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     status = status ?: log.status,
                     email = email ?: log.email,
                     format = format ?: log.format,
-                    enquiryReceived = enquiryReceived ?: log.enquiryReceived
+                    enquiryReceived = enquiryReceived ?: log.enquiryReceived,
+                    followUpDate = followUpDate ?: log.followUpDate
                 )
             } else log
         }

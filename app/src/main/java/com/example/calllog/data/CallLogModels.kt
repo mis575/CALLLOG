@@ -20,7 +20,8 @@ data class CallRecord(
     val isSaved: Boolean = false,
     val syncedBy: String? = null,
     val enquiryReceived: String = "",
-    val category: String = ""
+    val category: String = "",
+    val followUpDate: String = ""
 )
 
 @Serializable

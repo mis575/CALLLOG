@@ -559,11 +559,25 @@ fun FollowUpInterestedSection(
                                 }
                             }
                             Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)),
-                                fontSize = 9.sp,
-                                color = Color.Gray
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)),
+                                    fontSize = 9.sp,
+                                    color = Color.Gray
+                                )
+                                if (isFollowUp && !log.followUpDate.isNullOrBlank()) {
+                                    Text(
+                                        text = "📅 ${log.followUpDate}",
+                                        fontSize = 9.sp,
+                                        color = OrangeOk,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -611,6 +625,8 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
     var localStatus       by remember(log.id) { mutableStateOf(log.status) }
     var localFormat       by remember(log.id) { mutableStateOf(log.format) }
     var localEnquiry      by remember(log.id) { mutableStateOf(log.enquiryReceived) }
+    var localFollowUpDate by remember(log.id) { mutableStateOf(log.followUpDate) }
+    var showFollowUpDatePicker by remember { mutableStateOf(false) }
 
     // isSaved: sync from server only if the card transitions to saved state
     // (i.e. only allow server to flip false→true, not true→false during editing)
@@ -813,12 +829,43 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                                         localStatus = s
                                         localEnquiry = ""
                                         viewModel.updateCallDetails(log.id, status = s, enquiryReceived = "")
+                                        if (s == "Follow Up") {
+                                            showFollowUpDatePicker = true
+                                        }
                                     }
                                     expanded = false
                                 })
                             }
                         }
                     }
+                }
+                if (localStatus == "Follow Up") {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showFollowUpDatePicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFF9800)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = if (localFollowUpDate.isNotBlank()) "📅 Follow Up Date: $localFollowUpDate" else "📅 Click to Set Follow Up Date",
+                            color = Color(0xFFE65100),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                if (showFollowUpDatePicker) {
+                    SimpleDatePickerDialog(
+                        initialSelectedDateMillis = null,
+                        onDateSelected = { millis ->
+                            val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(millis))
+                            localFollowUpDate = formattedDate
+                            viewModel.updateCallDetails(log.id, followUpDate = formattedDate)
+                        },
+                        onDismiss = { showFollowUpDatePicker = false }
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 var formatExpanded by remember { mutableStateOf(false) }

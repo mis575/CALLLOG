@@ -1933,15 +1933,24 @@ fun CustomDateRangeDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val start = startDate ?: System.currentTimeMillis()
-                    val end = endDate ?: System.currentTimeMillis()
-                    val cal = Calendar.getInstance()
-                    cal.timeInMillis = end
-                    cal.set(Calendar.HOUR_OF_DAY, 23)
-                    cal.set(Calendar.MINUTE, 59)
-                    cal.set(Calendar.SECOND, 59)
-                    cal.set(Calendar.MILLISECOND, 999)
-                    onApply(start, cal.timeInMillis)
+                    val rawStart = startDate ?: System.currentTimeMillis()
+                    val rawEnd = endDate ?: rawStart
+                    
+                    val startCal = Calendar.getInstance()
+                    startCal.timeInMillis = rawStart
+                    startCal.set(Calendar.HOUR_OF_DAY, 0)
+                    startCal.set(Calendar.MINUTE, 0)
+                    startCal.set(Calendar.SECOND, 0)
+                    startCal.set(Calendar.MILLISECOND, 0)
+
+                    val endCal = Calendar.getInstance()
+                    endCal.timeInMillis = rawEnd
+                    endCal.set(Calendar.HOUR_OF_DAY, 23)
+                    endCal.set(Calendar.MINUTE, 59)
+                    endCal.set(Calendar.SECOND, 59)
+                    endCal.set(Calendar.MILLISECOND, 999)
+
+                    onApply(startCal.timeInMillis, endCal.timeInMillis)
                     onDismiss()
                 },
                 enabled = startDate != null

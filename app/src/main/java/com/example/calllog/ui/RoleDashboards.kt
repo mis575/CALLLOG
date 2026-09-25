@@ -1,6 +1,7 @@
 package com.example.calllog.ui
 
 import android.widget.Toast
+import com.example.calllog.data.effectiveDuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -2224,7 +2225,7 @@ fun ReadOnlyCallLogItem(log: CallRecord) {
                         border = BorderStroke(1.dp, Color.LightGray)
                     ) {
                         Text(
-                            text = "$callTypeLabel (${log.duration}s)",
+                            text = "$callTypeLabel (${log.effectiveDuration}s)",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 10.sp

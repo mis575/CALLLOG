@@ -176,12 +176,18 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
     ) {
         _todaysLogs.value = _todaysLogs.value.map { log ->
             if (log.id == callId) {
+                val newStatus = status ?: log.status
+                val statusLower = newStatus.lowercase().trim()
+                val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
+                val newDuration = if (isUnconnected) 0L else log.duration
+
                 log.copy(
                     description = description ?: log.description,
                     contactName = contactName ?: log.contactName,
                     companyName = companyName ?: log.companyName,
                     address = address ?: log.address,
-                    status = status ?: log.status,
+                    status = newStatus,
+                    duration = newDuration,
                     email = email ?: log.email,
                     format = format ?: log.format,
                     enquiryReceived = enquiryReceived ?: log.enquiryReceived,
@@ -194,10 +200,13 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
     fun saveCallLog(logId: String) {
         // Always look up the LATEST version of the log from state — never use the stale composable parameter
         val latestLog = _todaysLogs.value.find { it.id == logId } ?: return
+        val statusLower = latestLog.status.lowercase().trim()
+        val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
+        val logToSync = if (isUnconnected) latestLog.copy(duration = 0L, isSaved = true) else latestLog.copy(isSaved = true)
         _uiState.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val success = SyncManager.syncLogs(listOf(latestLog.copy(isSaved = true)))
+                val success = SyncManager.syncLogs(listOf(logToSync))
                 if (success) {
                     _uiState.value = UiState.Success("Saved and synced!")
                     loadTodaysLogs() // Refresh to lock UI

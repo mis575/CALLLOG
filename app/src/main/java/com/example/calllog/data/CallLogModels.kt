@@ -24,6 +24,13 @@ data class CallRecord(
     val followUpDate: String = ""
 )
 
+val CallRecord.effectiveDuration: Long
+    get() {
+        val statusLower = (status ?: "").lowercase().trim()
+        val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
+        return if (isUnconnected) 0L else duration
+    }
+
 @Serializable
 data class MongoInsertRequest(
     val dataSource: String,

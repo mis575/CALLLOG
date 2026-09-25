@@ -122,9 +122,14 @@ object SyncManager {
 
     suspend fun syncLogs(logs: List<CallRecord>): Boolean {
         var attempts = 3
+        val sanitizedLogs = logs.map { log ->
+            val statusLower = (log.status ?: "").lowercase().trim()
+            val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
+            if (isUnconnected) log.copy(duration = 0L) else log
+        }
         while (attempts > 0) {
             try {
-                val response = api.syncCallLogs(SyncRequest(userName, userEmpId, logs))
+                val response = api.syncCallLogs(SyncRequest(userName, userEmpId, sanitizedLogs))
                 if (response.isSuccessful && response.body()?.saved == true && response.body()?.sheetsSynced == true) return true
             } catch (e: Exception) {
                 // Ignore transient errors and retry

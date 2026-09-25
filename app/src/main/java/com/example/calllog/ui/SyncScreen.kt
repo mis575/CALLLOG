@@ -3,6 +3,7 @@ package com.example.calllog.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.calllog.data.effectiveDuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -767,7 +768,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
         Column(modifier = Modifier.padding(14.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MetaChip("${log.duration}s")
+                    MetaChip("${log.effectiveDuration}s")
                     MetaChip(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(log.date)))
                 }
                 Surface(shape = RoundedCornerShape(20.dp), color = statusBg) {

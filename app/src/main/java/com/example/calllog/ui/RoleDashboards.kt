@@ -890,20 +890,37 @@ fun DashboardMainView(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
+                                    if (cleanRole != "EXECUTIVE") {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { selectedStatusFilter = null }
+                                                .border(
+                                                    width = if (selectedStatusFilter == null) 1.5.dp else 0.dp,
+                                                    color = if (selectedStatusFilter == null) Color.Black else Color.Transparent,
+                                                    shape = MaterialTheme.shapes.extraSmall
+                                                )
+                                                .padding(4.dp)
+                                        ) {
+                                            Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
+                                            Text("${latestReportsOnly.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                                        }
+                                    }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clickable { selectedStatusFilter = null }
+                                            .clickable { selectedStatusFilter = "Effective" }
                                             .border(
-                                                width = if (selectedStatusFilter == null) 1.5.dp else 0.dp,
-                                                color = if (selectedStatusFilter == null) Color.Black else Color.Transparent,
+                                                width = if (selectedStatusFilter == "Effective") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "Effective") Color(0xFF1E88E5) else Color.Transparent,
                                                 shape = MaterialTheme.shapes.extraSmall
                                             )
                                             .padding(4.dp)
                                     ) {
-                                        Text("Total Calls", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${latestReportsOnly.size}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+                                        Text("Effective", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${latestReportsOnly.count { it.effectiveDuration > 0 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E88E5))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,

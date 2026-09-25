@@ -301,10 +301,14 @@ fun ManagementDashboard(role: String) {
     }
 
     roleToAdd?.let { r ->
+        val combinedTLs = (allUsers + members).distinctBy { it.empId }.filter {
+            val rLower = (it.role ?: "").trim().lowercase()
+            rLower == "tl" || rLower == "team leader" || rLower == "teamleader"
+        }
         AddUserDialog(
             roleToAdd = r,
             browsingRole = browsingRole,
-            availableTLs = allUsers.filter { it.role?.equals("TL", ignoreCase = true) == true },
+            availableTLs = combinedTLs,
             categories = categories,
             onDismiss = { roleToAdd = null },
             onConfirm = { 
@@ -1835,15 +1839,24 @@ fun AddUserDialog(
                     }
                 }
 
-                // Only show TL selection if we are at Manager level and adding an Executive
-                if (roleToAdd == "Executive" && browsingRole == "Manager") {
+                // Show TL selection if adding an Executive and Manager/Admin or TLs exist
+                val isManagerOrAdmin = browsingRole.equals("Manager", ignoreCase = true) || 
+                                       browsingRole.equals("Admin", ignoreCase = true) || 
+                                       SyncManager.userRole.equals("Manager", ignoreCase = true) || 
+                                       SyncManager.userRole.equals("Admin", ignoreCase = true)
+
+                if (roleToAdd.equals("Executive", ignoreCase = true) && (isManagerOrAdmin || availableTLs.isNotEmpty())) {
                     Spacer(Modifier.height(16.dp))
-                    Text("Assign to Team Leader:", fontWeight = FontWeight.SemiBold)
+                    Text("Assign to Team Leader (Optional):", fontWeight = FontWeight.SemiBold)
                     Box(Modifier.fillMaxWidth()) {
+                        val selectedTLObj = availableTLs.find { it.empId == selectedTL }
+                        val buttonText = if (selectedTLObj != null) "${selectedTLObj.name} (${selectedTLObj.empId})" else if (selectedTL.isNotEmpty()) selectedTL else "Direct to Manager (No TL)"
+
                         OutlinedButton(onClick = { tlExpanded = true }, Modifier.fillMaxWidth()) { 
-                            Text(if(selectedTL.isEmpty()) "Choose TL" else selectedTL) 
+                            Text(buttonText) 
                         }
                         DropdownMenu(tlExpanded, { tlExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Direct to Manager (No TL)") }, onClick = { selectedTL = ""; tlExpanded = false })
                             availableTLs.forEach { tl ->
                                 DropdownMenuItem(text = { Text("${tl.name} (${tl.empId})") }, onClick = { selectedTL = tl.empId; tlExpanded = false })
                             }
@@ -1856,7 +1869,7 @@ fun AddUserDialog(
             Button(onClick = { 
                 onConfirm(RegisterRequest(name, email, phone, "", pass, roleToAdd, selectedTL, selectedCategory))
                 onDismiss()
-            }, enabled = name.isNotBlank() && pass.isNotBlank() && (roleToAdd != "Executive" || selectedTL.isNotEmpty() || browsingRole != "Manager")) { 
+            }, enabled = name.isNotBlank() && pass.isNotBlank()) { 
                 Text("Create") 
             } 
         }

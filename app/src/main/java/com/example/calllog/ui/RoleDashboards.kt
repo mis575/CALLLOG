@@ -769,8 +769,11 @@ fun DashboardMainView(
                 val latestReportsOnly = remember(reports) {
                     val latestMap = LinkedHashMap<String, CallRecord>()
                     reports.forEach { log ->
-                        if (!latestMap.containsKey(log.number)) {
-                            latestMap[log.number] = log
+                        val statusLower = (log.status ?: "").lowercase().trim()
+                        if (log.duration > 0 && !statusLower.contains("missed") && !statusLower.contains("busy") && statusLower != "rejected") {
+                            if (!latestMap.containsKey(log.number)) {
+                                latestMap[log.number] = log
+                            }
                         }
                     }
                     latestMap.values.toList()
@@ -781,7 +784,8 @@ fun DashboardMainView(
                         "Interested" -> latestReportsOnly.filter { it.status.equals("Interested", ignoreCase = true) }
                         "Not Interested" -> latestReportsOnly.filter { it.status.equals("Not Interested", ignoreCase = true) }
                         "Prospect" -> latestReportsOnly.filter { it.status.equals("Prospect", ignoreCase = true) }
-                        "Missed Call" -> latestReportsOnly.filter { it.duration == 0L }
+                        "< 30s" -> latestReportsOnly.filter { it.duration in 1..30 }
+                        "> 30s" -> latestReportsOnly.filter { it.duration > 30 }
                         "Follow Up" -> latestReportsOnly.filter { it.status.equals("Follow Up", ignoreCase = true) }
                         else -> latestReportsOnly
                     }
@@ -953,16 +957,31 @@ fun DashboardMainView(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clickable { selectedStatusFilter = "Missed Call" }
+                                            .clickable { selectedStatusFilter = "< 30s" }
                                             .border(
-                                                width = if (selectedStatusFilter == "Missed Call") 1.5.dp else 0.dp,
-                                                color = if (selectedStatusFilter == "Missed Call") Color.DarkGray else Color.Transparent,
+                                                width = if (selectedStatusFilter == "< 30s") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "< 30s") Color(0xFFF59E0B) else Color.Transparent,
                                                 shape = MaterialTheme.shapes.extraSmall
                                             )
                                             .padding(4.dp)
                                     ) {
-                                        Text("Missed Call", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${latestReportsOnly.count { it.duration == 0L }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.DarkGray)
+                                        Text("< 30s", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${latestReportsOnly.count { it.duration in 1..30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF59E0B))
+                                    }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { selectedStatusFilter = "> 30s" }
+                                            .border(
+                                                width = if (selectedStatusFilter == "> 30s") 1.5.dp else 0.dp,
+                                                color = if (selectedStatusFilter == "> 30s") Color(0xFF10B981) else Color.Transparent,
+                                                shape = MaterialTheme.shapes.extraSmall
+                                            )
+                                            .padding(4.dp)
+                                    ) {
+                                        Text("> 30s", fontSize = 10.sp, color = Color.Gray)
+                                        Text("${latestReportsOnly.count { it.duration > 30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF10B981))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1857,8 +1876,7 @@ fun SimpleDatePickerDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val millis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                    onDateSelected(millis)
+                    datePickerState.selectedDateMillis?.let { onDateSelected(it) }
                     onDismiss()
                 }
             ) {
@@ -1933,24 +1951,15 @@ fun CustomDateRangeDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val rawStart = startDate ?: System.currentTimeMillis()
-                    val rawEnd = endDate ?: rawStart
-                    
-                    val startCal = Calendar.getInstance()
-                    startCal.timeInMillis = rawStart
-                    startCal.set(Calendar.HOUR_OF_DAY, 0)
-                    startCal.set(Calendar.MINUTE, 0)
-                    startCal.set(Calendar.SECOND, 0)
-                    startCal.set(Calendar.MILLISECOND, 0)
-
-                    val endCal = Calendar.getInstance()
-                    endCal.timeInMillis = rawEnd
-                    endCal.set(Calendar.HOUR_OF_DAY, 23)
-                    endCal.set(Calendar.MINUTE, 59)
-                    endCal.set(Calendar.SECOND, 59)
-                    endCal.set(Calendar.MILLISECOND, 999)
-
-                    onApply(startCal.timeInMillis, endCal.timeInMillis)
+                    val start = startDate ?: System.currentTimeMillis()
+                    val end = endDate ?: System.currentTimeMillis()
+                    val cal = Calendar.getInstance()
+                    cal.timeInMillis = end
+                    cal.set(Calendar.HOUR_OF_DAY, 23)
+                    cal.set(Calendar.MINUTE, 59)
+                    cal.set(Calendar.SECOND, 59)
+                    cal.set(Calendar.MILLISECOND, 999)
+                    onApply(start, cal.timeInMillis)
                     onDismiss()
                 },
                 enabled = startDate != null
@@ -2606,6 +2615,15 @@ fun TransferNumbersDialog(
                 enabled = uiState !is UiState.Loading
             ) {
                 Text("Assign")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
             }
         },
         dismissButton = {

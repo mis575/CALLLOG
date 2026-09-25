@@ -39,6 +39,13 @@ import com.example.calllog.ui.ManagementDashboard
 import com.example.calllog.ui.theme.CallLogTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onResume() {
+        super.onResume()
+        if (SyncManager.isLoggedIn.value) {
+            com.example.calllog.network.SocketManager.registerDevice()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SyncManager.init(applicationContext)

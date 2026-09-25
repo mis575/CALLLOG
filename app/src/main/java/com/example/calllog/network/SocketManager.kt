@@ -28,7 +28,12 @@ object SocketManager {
 
     private fun setupSocket() {
         try {
-            if (socket != null) return
+            if (socket != null) {
+                if (socket?.connected() == false) {
+                    socket?.connect()
+                }
+                return
+            }
             
             val opts = IO.Options().apply {
                 forceNew = true
@@ -40,7 +45,7 @@ object SocketManager {
             socket = IO.socket(SOCKET_URL, opts)
 
             socket?.on(Socket.EVENT_CONNECT) {
-                Log.d(TAG, "Socket Connected")
+                Log.d(TAG, "Socket Connected: id=${socket?.id()}")
                 isConnected = true
                 registerDevice()
             }?.on(Socket.EVENT_DISCONNECT) {
@@ -64,16 +69,29 @@ object SocketManager {
     }
 
     fun registerDevice() {
-        if (!isConnected || SyncManager.userEmpId.isEmpty()) {
-            Log.d(TAG, "Cannot register: Connected=$isConnected, EmpId=${SyncManager.userEmpId}")
+        val empId = SyncManager.userEmpId.trim()
+        if (empId.isEmpty()) {
+            Log.d(TAG, "Cannot register device: userEmpId is empty")
             return
         }
+
+        if (socket == null) {
+            setupSocket()
+            return
+        }
+
+        if (socket?.connected() != true) {
+            Log.d(TAG, "Socket not connected yet (isConnected=$isConnected). Triggering socket connect()...")
+            socket?.connect()
+            return
+        }
+
         val data = JSONObject().apply {
-            put("empId", SyncManager.userEmpId)
+            put("empId", empId)
             put("type", "mobile")
         }
         socket?.emit("register", data)
-        Log.d(TAG, "Sent register event to backend for empId: ${SyncManager.userEmpId}")
+        Log.d(TAG, "Sent register event to backend for empId: '$empId' (socketId=${socket?.id()})")
     }
 
     private fun triggerSystemCall(phoneNumber: String) {

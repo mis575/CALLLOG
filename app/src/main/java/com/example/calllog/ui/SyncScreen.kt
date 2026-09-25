@@ -631,6 +631,7 @@ private fun StatPill(
 // remember(log.id)) so that the periodic auto-refresh does NOT reset user input.
 @Composable
 fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     // ── Local editable state – initialized ONCE per unique log id ──────────────
     // These are NOT re-initialized when the parent recomposes due to auto-refresh,
     // because the key (log.id) stays the same. User-typed text is preserved.

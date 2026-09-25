@@ -2624,12 +2624,3 @@ fun TransferNumbersDialog(
         }
     )
 }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}

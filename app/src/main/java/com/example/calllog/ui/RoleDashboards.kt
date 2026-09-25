@@ -774,11 +774,8 @@ fun DashboardMainView(
                 val latestReportsOnly = remember(reports) {
                     val latestMap = LinkedHashMap<String, CallRecord>()
                     reports.forEach { log ->
-                        val statusLower = (log.status ?: "").lowercase().trim()
-                        if (log.duration > 0 && !statusLower.contains("missed") && !statusLower.contains("busy") && statusLower != "rejected") {
-                            if (!latestMap.containsKey(log.number)) {
-                                latestMap[log.number] = log
-                            }
+                        if (!latestMap.containsKey(log.number)) {
+                            latestMap[log.number] = log
                         }
                     }
                     latestMap.values.toList()
@@ -789,8 +786,8 @@ fun DashboardMainView(
                         "Interested" -> latestReportsOnly.filter { it.status.equals("Interested", ignoreCase = true) }
                         "Not Interested" -> latestReportsOnly.filter { it.status.equals("Not Interested", ignoreCase = true) }
                         "Prospect" -> latestReportsOnly.filter { it.status.equals("Prospect", ignoreCase = true) }
-                        "< 30s" -> latestReportsOnly.filter { it.duration in 1..30 }
-                        "> 30s" -> latestReportsOnly.filter { it.duration > 30 }
+                        "< 30s" -> latestReportsOnly.filter { it.effectiveDuration <= 30 }
+                        "> 30s" -> latestReportsOnly.filter { it.effectiveDuration > 30 }
                         "Follow Up" -> latestReportsOnly.filter { it.status.equals("Follow Up", ignoreCase = true) }
                         else -> latestReportsOnly
                     }
@@ -971,7 +968,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("< 30s", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${latestReportsOnly.count { it.duration in 1..30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF59E0B))
+                                        Text("${latestReportsOnly.count { it.effectiveDuration <= 30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF59E0B))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -986,7 +983,7 @@ fun DashboardMainView(
                                             .padding(4.dp)
                                     ) {
                                         Text("> 30s", fontSize = 10.sp, color = Color.Gray)
-                                        Text("${latestReportsOnly.count { it.duration > 30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF10B981))
+                                        Text("${latestReportsOnly.count { it.effectiveDuration > 30 }}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF10B981))
                                     }
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,

@@ -101,7 +101,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                             email = dbLog.email,
                             format = dbLog.format,
                             isSaved = dbLog.isSaved,
-                            syncedBy = dbLog.syncedBy,
+                            syncedBy = if (!dbLog.syncedBy.isNullOrBlank()) dbLog.syncedBy else SyncManager.userName,
+                            syncedByEmpId = if (!dbLog.syncedByEmpId.isNullOrBlank()) dbLog.syncedByEmpId else SyncManager.userEmpId,
                             enquiryReceived = dbLog.enquiryReceived
                         )
                     )
@@ -117,6 +118,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                             status = currentLocalLog.status,
                             email = currentLocalLog.email,
                             format = currentLocalLog.format,
+                            syncedBy = SyncManager.userName,
+                            syncedByEmpId = SyncManager.userEmpId,
                             enquiryReceived = currentLocalLog.enquiryReceived
                         )
                     )
@@ -128,7 +131,7 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                     val assigned = _assignedContacts.value.find { cleanNumber(it.number) == cleanSysNum }
                     if (inProgress != null && !inProgress.isSaved) {
                         // User has already started editing this log — keep their current edits
-                        mergedLogsList.add(inProgress)
+                        mergedLogsList.add(inProgress.copy(syncedBy = SyncManager.userName, syncedByEmpId = SyncManager.userEmpId))
                     } else {
                         mergedLogsList.add(
                             systemLog.copy(
@@ -140,6 +143,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                                 status = "Select Status",
                                 email = "",
                                 format = "Select Format",
+                                syncedBy = SyncManager.userName,
+                                syncedByEmpId = SyncManager.userEmpId,
                                 enquiryReceived = ""
                             )
                         )
@@ -150,12 +155,19 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
             // Next, add any database logs that are NOT in the system call logs and weren't matched
             dbLogs.forEach { dbLog ->
                 if (!matchedDbIds.contains(dbLog.id) && !systemMap.containsKey(dbLog.id)) {
-                    mergedLogsList.add(dbLog)
+                    mergedLogsList.add(
+                        dbLog.copy(
+                            syncedBy = if (!dbLog.syncedBy.isNullOrBlank()) dbLog.syncedBy else SyncManager.userName,
+                            syncedByEmpId = if (!dbLog.syncedByEmpId.isNullOrBlank()) dbLog.syncedByEmpId else SyncManager.userEmpId
+                        )
+                    )
                 }
             }
 
-            // Sort merged list by date descending so newest calls are first
-            val finalLogs = mergedLogsList.sortedByDescending { it.date }
+            // Filter out 0s duration / unconnected calls from call log list in app, and sort by date descending
+            val finalLogs = mergedLogsList
+                .filter { it.effectiveDuration > 0 }
+                .sortedByDescending { it.date }
             
             android.util.Log.d("CallLogVM", "Merged call logs count: ${finalLogs.size}")
             _todaysLogs.value = finalLogs

@@ -19,6 +19,7 @@ data class CallRecord(
     val format: String = "Select Format",
     val isSaved: Boolean = false,
     val syncedBy: String? = null,
+    val syncedByEmpId: String? = null,
     val enquiryReceived: String = "",
     val category: String = "",
     val followUpDate: String = ""

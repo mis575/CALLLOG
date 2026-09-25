@@ -79,12 +79,15 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                 var dbLog = dbMap[systemLog.id]
                 val currentLocalLog = currentUIStateMap[systemLog.id]
                 
-                // Fuzzy matching if not found by exact ID (same number within 10 minutes)
+                // Fuzzy matching if not found by exact ID (same clean number within 12 hours)
                 if (dbLog == null) {
-                    val tenMinsMs = 10 * 60 * 1000
-                    dbLog = dbLogs.find {
-                        cleanNumber(it.number) == cleanNumber(systemLog.number) &&
-                        Math.abs(it.date - systemLog.date) <= tenMinsMs
+                    val twelveHoursMs = 12 * 60 * 60 * 1000L
+                    val cleanSysNum = cleanNumber(systemLog.number)
+                    if (cleanSysNum.isNotEmpty()) {
+                        dbLog = dbLogs.find {
+                            cleanNumber(it.number) == cleanSysNum &&
+                            Math.abs(it.date - systemLog.date) <= twelveHoursMs
+                        }
                     }
                 }
 
@@ -164,9 +167,8 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
                 }
             }
 
-            // Filter out 0s duration / unconnected calls from call log list in app, and sort by date descending
+            // Sort all logs by date descending
             val finalLogs = mergedLogsList
-                .filter { it.effectiveDuration > 0 }
                 .sortedByDescending { it.date }
             
             android.util.Log.d("CallLogVM", "Merged call logs count: ${finalLogs.size}")
@@ -215,6 +217,10 @@ class CallLogViewModel(private val context: Context) : ViewModel() {
         val statusLower = latestLog.status.lowercase().trim()
         val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
         val logToSync = if (isUnconnected) latestLog.copy(duration = 0L, isSaved = true) else latestLog.copy(isSaved = true)
+        
+        // Optimistically mark as saved in local state so UI updates immediately to "Saved & Synced"
+        _todaysLogs.value = _todaysLogs.value.map { if (it.id == logId) logToSync else it }
+
         _uiState.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             try {

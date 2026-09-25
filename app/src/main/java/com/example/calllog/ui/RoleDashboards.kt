@@ -783,6 +783,7 @@ fun DashboardMainView(
 
                 val filteredReports = remember(latestReportsOnly, selectedStatusFilter, searchQuery, selectedCategoryFilter) {
                     var list = when (selectedStatusFilter) {
+                        "Effective" -> latestReportsOnly.filter { it.effectiveDuration > 0 }
                         "Interested" -> latestReportsOnly.filter { it.status.equals("Interested", ignoreCase = true) }
                         "Not Interested" -> latestReportsOnly.filter { it.status.equals("Not Interested", ignoreCase = true) }
                         "Prospect" -> latestReportsOnly.filter { it.status.equals("Prospect", ignoreCase = true) }

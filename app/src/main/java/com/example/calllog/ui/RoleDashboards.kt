@@ -774,8 +774,12 @@ fun DashboardMainView(
                 val latestReportsOnly = remember(reports) {
                     val latestMap = LinkedHashMap<String, CallRecord>()
                     reports.forEach { log ->
-                        if (!latestMap.containsKey(log.number)) {
-                            latestMap[log.number] = log
+                        val statusLower = (log.status ?: "").lowercase().trim()
+                        val isUnconnected = statusLower == "busy" || statusLower == "not answering" || statusLower == "no answer" || statusLower == "missed" || statusLower == "rejected" || statusLower == "unconnected"
+                        if (log.duration > 0 && !isUnconnected) {
+                            if (!latestMap.containsKey(log.number)) {
+                                latestMap[log.number] = log
+                            }
                         }
                     }
                     latestMap.values.toList()
@@ -1045,7 +1049,7 @@ fun DashboardMainView(
                                 )
                                 
                                 slots.forEach { (hourStart, label) ->
-                                    val actual = reports.count { log ->
+                                    val actual = latestReportsOnly.count { log ->
                                         val cal = Calendar.getInstance().apply { timeInMillis = log.date }
                                         val hour = cal.get(Calendar.HOUR_OF_DAY)
                                         hour == hourStart

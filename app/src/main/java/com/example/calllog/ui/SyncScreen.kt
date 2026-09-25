@@ -838,11 +838,7 @@ fun CallLogItem(log: CallRecord, viewModel: CallLogViewModel, uiState: UiState) 
                             statuses.forEach { s ->
                                 DropdownMenuItem(text = { Text(s) }, onClick = {
                                     if (s == "Interested") {
-                                        if (log.duration <= 30) {
-                                            android.widget.Toast.makeText(context, "Interested status is only allowed for calls > 30 seconds", android.widget.Toast.LENGTH_LONG).show()
-                                        } else {
-                                            showEnquiryDialog = true
-                                        }
+                                        showEnquiryDialog = true
                                     } else if (s == "Busy" || s == "No Answer" || s == "Not Answering") {
                                         localStatus = s
                                         localEnquiry = "No"

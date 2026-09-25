@@ -130,7 +130,7 @@ object SyncManager {
         while (attempts > 0) {
             try {
                 val response = api.syncCallLogs(SyncRequest(userName, userEmpId, sanitizedLogs))
-                if (response.isSuccessful && response.body()?.saved == true && response.body()?.sheetsSynced == true) return true
+                if (response.isSuccessful && response.body()?.saved == true) return true
             } catch (e: Exception) {
                 // Ignore transient errors and retry
             }

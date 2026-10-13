@@ -11,6 +11,14 @@ import com.example.calllog.CallLogViewModel
 import com.example.calllog.UiState
 import com.example.calllog.data.LoginRequest
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.example.calllog.R
+
 @Composable
 fun LoginScreen(
     viewModel: CallLogViewModel,
@@ -22,12 +30,21 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "CRM Login", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(32.dp))
+        Image(
+            painter = painterResource(id = R.drawable.jj_logo),
+            contentDescription = "JJ Group Logo",
+            modifier = Modifier
+                .size(90.dp)
+                .clip(RoundedCornerShape(16.dp))
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "JJ Call CRM", fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)
+        Text(text = "Real-Time Call & Lead Sync", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(28.dp))
 
         TextField(value = username, onValueChange = { username = it }, label = { Text("Employee ID") }, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(16.dp))

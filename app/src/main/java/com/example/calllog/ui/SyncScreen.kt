@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import com.example.calllog.data.effectiveDuration
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import com.example.calllog.R
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -116,15 +121,23 @@ fun SyncScreen(
         latestMap.values.toList()
     }
 
+    val unconnectedList = remember { listOf("busy", "not answering", "no answer", "missed", "rejected", "unconnected") }
+
     val filteredLogs = remember(latestLogsOnly, selectedStatusFilter, searchQuery) {
         var list = latestLogsOnly
         if (selectedStatusFilter != null) {
             list = when (selectedStatusFilter) {
                 "Interested" -> list.filter { it.status.equals("Interested", ignoreCase = true) }
+                "Not Interested" -> list.filter { it.status.equals("Not Interested", ignoreCase = true) }
                 "Follow Up" -> list.filter { it.status.equals("Follow Up", ignoreCase = true) }
+                "Missed / Busy" -> list.filter { unconnectedList.contains(it.status?.lowercase()?.trim()) || it.duration == 0L }
                 "Prospect" -> list.filter { it.status.equals("Prospect", ignoreCase = true) }
                 "Enquiry" -> list.filter { it.enquiryReceived.equals("Yes", ignoreCase = true) }
                 "No Enquiry" -> list.filter { it.enquiryReceived.equals("No", ignoreCase = true) }
+                "< 1 Min" -> list.filter { it.duration in 1L..59L && !unconnectedList.contains(it.status?.lowercase()?.trim()) }
+                "1 to 3 Min" -> list.filter { it.duration in 60L..180L && !unconnectedList.contains(it.status?.lowercase()?.trim()) }
+                "3 Min +" -> list.filter { it.duration > 180L && !unconnectedList.contains(it.status?.lowercase()?.trim()) }
+                "Connected" -> list.filter { it.duration > 0L && !unconnectedList.contains(it.status?.lowercase()?.trim()) }
                 else -> list
             }
         }
@@ -148,6 +161,52 @@ fun SyncScreen(
         list
     }
 
+    // Report Metric Calculations (Matching Website)
+    val totalCalls = latestLogsOnly.size
+    val interestedCount = latestLogsOnly.count { it.status.equals("Interested", ignoreCase = true) }
+    val notInterestedCount = latestLogsOnly.count { it.status.equals("Not Interested", ignoreCase = true) }
+    val followUpCount = latestLogsOnly.count { it.status.equals("Follow Up", ignoreCase = true) }
+    val missedBusyCount = latestLogsOnly.count {
+        val s = it.status?.lowercase()?.trim() ?: ""
+        unconnectedList.contains(s) || it.duration == 0L
+    }
+    val prospectCount = latestLogsOnly.count { it.status.equals("Prospect", ignoreCase = true) }
+    val enquiryCount = latestLogsOnly.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }
+
+    // Connected duration stats
+    val connectedLogs = latestLogsOnly.filter { it.duration > 0L && !unconnectedList.contains(it.status?.lowercase()?.trim()) }
+    val totalConnectedCalls = connectedLogs.size
+    val under1MinCalls = connectedLogs.count { it.duration in 1L..59L }
+    val oneToThreeMinCalls = connectedLogs.count { it.duration in 60L..180L }
+    val overThreeMinCalls = connectedLogs.count { it.duration > 180L }
+    val totalTalkTimeSec = connectedLogs.sumOf { it.duration }
+    val avgDurationSec = if (totalConnectedCalls > 0) totalTalkTimeSec / totalConnectedCalls else 0L
+
+    val activeDays = remember(todaysLogs) {
+        val cal = Calendar.getInstance()
+        val set = mutableSetOf<String>()
+        todaysLogs.forEach {
+            cal.timeInMillis = it.date
+            set.add("${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}")
+        }
+        maxOf(set.size, 1)
+    }
+
+    val hourSlots = remember {
+        listOf(
+            9 to "9:00 AM - 10:00 AM",
+            10 to "10:00 AM - 11:00 AM",
+            11 to "11:00 AM - 12:00 PM",
+            12 to "12:00 PM - 1:00 PM",
+            13 to "1:00 PM - 2:00 PM",
+            14 to "2:00 PM - 3:00 PM",
+            15 to "3:00 PM - 4:00 PM",
+            16 to "4:00 PM - 5:00 PM",
+            17 to "5:00 PM - 6:00 PM",
+            18 to "6:00 PM - 7:00 PM"
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA))) {
 
         Box(
@@ -161,9 +220,21 @@ fun SyncScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("JJ CRM", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Color.White)
-                    Text(SyncManager.userName, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(id = R.drawable.jj_logo),
+                        contentDescription = "JJ Group Logo",
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                            .padding(2.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("JJ Call CRM", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color.White)
+                        Text(SyncManager.userName, fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                    }
                 }
                 OutlinedButton(
                     onClick = { SyncManager.logout(context) },
@@ -308,15 +379,23 @@ fun SyncScreen(
                 )
             }
 
+            // ── 1. SUMMARY STATISTICS CARDS (MATCHING WEBSITE IMAGE 1) ──────────────────
             item {
                 Spacer(Modifier.height(10.dp))
-                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(4.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(3.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Summary Statistics", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1E293B))
+                        Spacer(Modifier.height(8.dp))
+                        // Top Row: Total, Interested, Not Interested, Follow Up
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             StatPill(
-                                label = "Total",
-                                value = "${latestLogsOnly.size}",
+                                label = "TOTAL CALLS",
+                                value = "$totalCalls",
                                 textColor = PrimaryBlue,
                                 bgColor = BlueLight,
                                 border = if (selectedStatusFilter == null) BorderStroke(1.5.dp, PrimaryBlue) else null,
@@ -324,8 +403,8 @@ fun SyncScreen(
                                 onClick = { selectedStatusFilter = null }
                             )
                             StatPill(
-                                label = "Interested",
-                                value = "${latestLogsOnly.count { it.status.equals("Interested", ignoreCase = true) }}",
+                                label = "(${getPctString(interestedCount, totalCalls)}) INTERESTED",
+                                value = "$interestedCount",
                                 textColor = GreenOk,
                                 bgColor = GreenLight,
                                 border = if (selectedStatusFilter == "Interested") BorderStroke(1.5.dp, GreenOk) else null,
@@ -333,8 +412,17 @@ fun SyncScreen(
                                 onClick = { selectedStatusFilter = "Interested" }
                             )
                             StatPill(
-                                label = "Follow Up",
-                                value = "${latestLogsOnly.count { it.status.equals("Follow Up",  ignoreCase = true) }}",
+                                label = "(${getPctString(notInterestedCount, totalCalls)}) NOT INT.",
+                                value = "$notInterestedCount",
+                                textColor = Color(0xFF546E7A),
+                                bgColor = Color(0xFFECEFF1),
+                                border = if (selectedStatusFilter == "Not Interested") BorderStroke(1.5.dp, Color(0xFF546E7A)) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Not Interested" }
+                            )
+                            StatPill(
+                                label = "(${getPctString(followUpCount, totalCalls)}) FOLLOW UP",
+                                value = "$followUpCount",
                                 textColor = OrangeOk,
                                 bgColor = OrangeLight,
                                 border = if (selectedStatusFilter == "Follow Up") BorderStroke(1.5.dp, OrangeOk) else null,
@@ -343,36 +431,258 @@ fun SyncScreen(
                             )
                         }
                         Spacer(Modifier.height(8.dp))
-                        HorizontalDivider(color = DividerColor)
-                        Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Bottom Row: Missed/Busy, Prospect, Enquiry Received
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             StatPill(
-                                label = "Enquiry",
-                                value = "${latestLogsOnly.count { it.enquiryReceived.equals("Yes", ignoreCase = true) }}",
-                                textColor = GreenOk,
-                                bgColor = GreenLight,
-                                border = if (selectedStatusFilter == "Enquiry") BorderStroke(1.5.dp, GreenOk) else null,
-                                modifier = Modifier.weight(1f),
-                                onClick = { selectedStatusFilter = "Enquiry" }
-                            )
-                            StatPill(
-                                label = "No Enquiry",
-                                value = "${latestLogsOnly.count { it.enquiryReceived.equals("No",  ignoreCase = true) }}",
+                                label = "(${getPctString(missedBusyCount, totalCalls)}) MISSED/BUSY",
+                                value = "$missedBusyCount",
                                 textColor = RedOk,
                                 bgColor = RedLight,
-                                border = if (selectedStatusFilter == "No Enquiry") BorderStroke(1.5.dp, RedOk) else null,
+                                border = if (selectedStatusFilter == "Missed / Busy") BorderStroke(1.5.dp, RedOk) else null,
                                 modifier = Modifier.weight(1f),
-                                onClick = { selectedStatusFilter = "No Enquiry" }
+                                onClick = { selectedStatusFilter = "Missed / Busy" }
                             )
                             StatPill(
-                                label = "Prospect",
-                                value = "${latestLogsOnly.count { it.status.equals("Prospect", ignoreCase = true) }}",
-                                textColor = PrimaryBlue,
-                                bgColor = BlueLight,
-                                border = if (selectedStatusFilter == "Prospect") BorderStroke(1.5.dp, PrimaryBlue) else null,
+                                label = "(${getPctString(prospectCount, totalCalls)}) PROSPECT",
+                                value = "$prospectCount",
+                                textColor = PurpleOk,
+                                bgColor = PurpleLight,
+                                border = if (selectedStatusFilter == "Prospect") BorderStroke(1.5.dp, PurpleOk) else null,
                                 modifier = Modifier.weight(1f),
                                 onClick = { selectedStatusFilter = "Prospect" }
                             )
+                            StatPill(
+                                label = "(${getPctString(enquiryCount, totalCalls)}) ENQUIRY RCVD",
+                                value = "$enquiryCount",
+                                textColor = Color(0xFF00796B),
+                                bgColor = Color(0xFFE0F2F1),
+                                border = if (selectedStatusFilter == "Enquiry") BorderStroke(1.5.dp, Color(0xFF00796B)) else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = "Enquiry" }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── 2. CALL DURATION REPORT CARD (MATCHING WEBSITE IMAGE 1) ───────────────
+            item {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(3.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("⏱️ Call Duration Report Card", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1E293B))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "(Connected: $totalConnectedCalls | Avg Duration: ${formatDurationSec(avgDurationSec)})",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // < 1 Min
+                            DurationCardItem(
+                                count = "$under1MinCalls",
+                                sublabel = "(${getPctString(under1MinCalls, totalConnectedCalls)}) < 1 MIN",
+                                description = "Quick connects (< 60s)",
+                                accentColor = Color(0xFFF59E0B),
+                                isSelected = selectedStatusFilter == "< 1 Min",
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = if (selectedStatusFilter == "< 1 Min") null else "< 1 Min" }
+                            )
+                            // 1 to 3 Min
+                            DurationCardItem(
+                                count = "$oneToThreeMinCalls",
+                                sublabel = "(${getPctString(oneToThreeMinCalls, totalConnectedCalls)}) 1 TO 3 MIN",
+                                description = "Standard (60s-180s)",
+                                accentColor = Color(0xFF3B82F6),
+                                isSelected = selectedStatusFilter == "1 to 3 Min",
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = if (selectedStatusFilter == "1 to 3 Min") null else "1 to 3 Min" }
+                            )
+                            // 3 Min +
+                            DurationCardItem(
+                                count = "$overThreeMinCalls",
+                                sublabel = "(${getPctString(overThreeMinCalls, totalConnectedCalls)}) 3 MIN +",
+                                description = "In-depth (> 180s)",
+                                accentColor = Color(0xFF10B981),
+                                isSelected = selectedStatusFilter == "3 Min +",
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = if (selectedStatusFilter == "3 Min +") null else "3 Min +" }
+                            )
+                            // Total Connected
+                            DurationCardItem(
+                                count = "$totalConnectedCalls",
+                                sublabel = "TOTAL CONNECTED",
+                                description = "Talk: ${formatDurationSec(totalTalkTimeSec)}",
+                                accentColor = Color(0xFF8B5CF6),
+                                isSelected = selectedStatusFilter == "Connected",
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedStatusFilter = if (selectedStatusFilter == "Connected") null else "Connected" }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── 3. HOURLY REPORT SECTION IN EXECUTIVE DASHBOARD (IMAGE 2) ─────────────
+            item {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(3.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            "📈 Hourly Performance (Daily Target: 30 | Active Days: $activeDays)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(Modifier.height(10.dp))
+
+                        // Table Header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                .padding(vertical = 8.dp, horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Time Slot", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF334155))
+                            Text("Planned", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF334155), textAlign = TextAlign.Center)
+                            Text("Actual", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF334155), textAlign = TextAlign.Center)
+                            Text("Achievement", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF334155), textAlign = TextAlign.Center)
+                            Text("Status", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF334155), textAlign = TextAlign.End)
+                        }
+
+                        var totalPlannedCalls = 0
+                        var totalActualCalls = 0
+
+                        hourSlots.forEach { (hourStart, slotLabel) ->
+                            val actual = latestLogsOnly.count { log ->
+                                val cal = Calendar.getInstance().apply { timeInMillis = log.date }
+                                cal.get(Calendar.HOUR_OF_DAY) == hourStart
+                            }
+                            val planned = 30 * activeDays
+                            totalPlannedCalls += planned
+                            totalActualCalls += actual
+
+                            val pct = if (planned > 0) Math.round((actual.toFloat() / planned.toFloat()) * 100) else 0
+                            val (statusLabel, statusColor) = getPerfStatus(pct)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp, horizontal = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(slotLabel, modifier = Modifier.weight(2f), fontSize = 11.sp, color = Color(0xFF1E293B), fontWeight = FontWeight.Medium)
+                                Text("$planned", modifier = Modifier.weight(1.1f), fontSize = 11.sp, textAlign = TextAlign.Center, color = Color.Gray)
+                                Text("$actual", modifier = Modifier.weight(1f), fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = Color(0xFF1E293B))
+                                Text("$pct%", modifier = Modifier.weight(1.2f), fontSize = 11.sp, textAlign = TextAlign.Center, color = Color.Gray)
+                                Box(modifier = Modifier.weight(1.2f), contentAlignment = Alignment.CenterEnd) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = statusColor.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = statusLabel,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = statusColor,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                        }
+
+                        // Total Summary Row
+                        val totalPct = if (totalPlannedCalls > 0) Math.round((totalActualCalls.toFloat() / totalPlannedCalls.toFloat()) * 100) else 0
+                        val (overallStatus, overallColor) = getPerfStatus(totalPct)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().background(Color(0xFFF8FAFC)).padding(vertical = 8.dp, horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total Summary", modifier = Modifier.weight(2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF0F172A))
+                            Text("$totalPlannedCalls", modifier = Modifier.weight(1.1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = TextAlign.Center, color = Color(0xFF0F172A))
+                            Text("$totalActualCalls", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = TextAlign.Center, color = Color(0xFF0F172A))
+                            Text("$totalPct%", modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, fontSize = 11.sp, textAlign = TextAlign.Center, color = Color(0xFF0F172A))
+                            Box(modifier = Modifier.weight(1.2f), contentAlignment = Alignment.CenterEnd) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = overallColor.copy(alpha = 0.18f)
+                                ) {
+                                    Text(
+                                        text = overallStatus,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = overallColor,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+                        HorizontalDivider(color = Color(0xFFE2E8F0))
+                        Spacer(Modifier.height(10.dp))
+
+                        // Connected Call Duration Report (Image 2)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("⏱️ Connected Call Duration Report", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF1E293B))
+                            Text("Avg: ${formatDurationSec(avgDurationSec)}", fontSize = 11.sp, color = PrimaryBlue, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // < 1 Min
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                color = if (selectedStatusFilter == "< 1 Min") Color(0xFFFFFBEB) else Color.White,
+                                modifier = Modifier.weight(1f).clickable { selectedStatusFilter = if (selectedStatusFilter == "< 1 Min") null else "< 1 Min" }
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("$under1MinCalls", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFFF59E0B))
+                                    Text("< 1 MIN CALL (${getPctString(under1MinCalls, totalConnectedCalls)})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF78350F), textAlign = TextAlign.Center)
+                                }
+                            }
+                            // 1 to 3 Min
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                                color = if (selectedStatusFilter == "1 to 3 Min") Color(0xFFEFF6FF) else Color.White,
+                                modifier = Modifier.weight(1f).clickable { selectedStatusFilter = if (selectedStatusFilter == "1 to 3 Min") null else "1 to 3 Min" }
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("$oneToThreeMinCalls", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFF3B82F6))
+                                    Text("1 TO 3 MIN CALL (${getPctString(oneToThreeMinCalls, totalConnectedCalls)})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A), textAlign = TextAlign.Center)
+                                }
+                            }
+                            // 3 Min +
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFF10B981)),
+                                color = if (selectedStatusFilter == "3 Min +") Color(0xFFECFDF5) else Color.White,
+                                modifier = Modifier.weight(1f).clickable { selectedStatusFilter = if (selectedStatusFilter == "3 Min +") null else "3 Min +" }
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("$overThreeMinCalls", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFF10B981))
+                                    Text("3 MIN + CALL (${getPctString(overThreeMinCalls, totalConnectedCalls)})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF064E3B), textAlign = TextAlign.Center)
+                                }
+                            }
                         }
                     }
                 }
@@ -621,10 +931,55 @@ private fun StatPill(
         modifier = modifier.clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = textColor)
-            Text(label,  fontSize = 9.sp, color = textColor.copy(alpha = 0.75f), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(value, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = textColor)
+            Text(label,  fontSize = 9.sp, color = textColor.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+@Composable
+private fun DurationCardItem(
+    count: String,
+    sublabel: String,
+    description: String,
+    accentColor: Color,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) accentColor else accentColor.copy(alpha = 0.35f)),
+        color = if (isSelected) accentColor.copy(alpha = 0.08f) else Color(0xFFFAFAFA),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Text(count, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = accentColor)
+            Spacer(Modifier.height(2.dp))
+            Text(sublabel, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(description, fontSize = 8.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+private fun getPerfStatus(pct: Int): Pair<String, Color> {
+    return when {
+        pct >= 90 -> "EXCELLENT" to Color(0xFF10B981)
+        pct >= 80 -> "BETTER" to Color(0xFF34D399)
+        pct >= 70 -> "GOOD" to Color(0xFF3B82F6)
+        pct >= 50 -> "AVERAGE" to Color(0xFFF59E0B)
+        else -> "POOR" to Color(0xFFEF4444)
+    }
+}
+
+private fun formatDurationSec(sec: Long): String {
+    val m = sec / 60
+    val s = sec % 60
+    return String.format(Locale.getDefault(), "%02d:%02d", m, s)
+}
+
+private fun getPctString(count: Int, total: Int): String {
+    return if (total > 0) "${Math.round((count.toFloat() / total.toFloat()) * 100)}%" else "0%"
 }
 
 // ─── CallLogItem ───────────────────────────────────────────────────────────────

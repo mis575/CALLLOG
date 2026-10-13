@@ -3,10 +3,14 @@ package com.example.calllog.ui
 import android.widget.Toast
 import com.example.calllog.data.effectiveDuration
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.example.calllog.R
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -173,8 +177,18 @@ fun ManagementDashboard(role: String) {
                             modifier = Modifier.padding(end = 8.dp)
                         ) { Text("← Back", fontSize = 11.sp) }
                     }
+                    Image(
+                        painter = painterResource(id = R.drawable.jj_logo),
+                        contentDescription = "JJ Group Logo",
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                            .padding(2.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("JJ CRM", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color.White)
+                        Text("JJ Call CRM", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Color.White)
                         val breadcrumb = if (browsingStack.size > 1) " › ${currentBrowsing.name}" else ""
                         Text(
                             text = "${SyncManager.userName} ($role)$breadcrumb",

@@ -19,7 +19,7 @@ object SocketManager {
     private var appContext: Context? = null
     private var lastState = TelephonyManager.EXTRA_STATE_IDLE
 
-    private const val SOCKET_URL = "https://call-log-qaq7.onrender.com/"
+    private const val SOCKET_URL = "https://jj-call-log-backend.onrender.com/"
 
     fun init(context: Context) {
         appContext = context.applicationContext

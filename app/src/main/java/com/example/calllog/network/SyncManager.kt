@@ -14,7 +14,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 
 object SyncManager {
-    private const val BACKEND_BASE_URL = "https://call-log-qaq7.onrender.com/"
+    private const val BACKEND_BASE_URL = "https://jj-call-log-backend.onrender.com/"
     private const val PREFS_NAME = "CRM_Prefs"
     
     private val _isLoggedIn = MutableStateFlow(false)
